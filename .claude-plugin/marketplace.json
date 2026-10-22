@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "souschef",
+  "version": "0.1.0",
+  "description": "Delegate test writing to a second coding agent and follow the run live.",
+  "owner": {
+    "name": "eldarjobs"
+  },
+  "plugins": [
+    {
+      "name": "souschef",
+      "description": "Hand test writing to the Antigravity CLI (agy) and follow the run live: start, wait, read the result, send feedback.",
+      "version": "0.1.0",
+      "source": "./plugin",
+      "category": "development"
+    }
+  ]
+}

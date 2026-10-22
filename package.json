@@ -1,0 +1,32 @@
+{
+  "name": "souschef",
+  "version": "0.1.0",
+  "description": "MCP server and Claude Code plugin that hands test writing to a second coding agent (Antigravity CLI first) and streams the run back.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "souschef": "plugin/dist/server.cjs"
+  },
+  "files": [
+    "plugin/dist/server.cjs"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=cjs --outfile=plugin/dist/server.cjs --banner:js=\"#!/usr/bin/env node\"",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "picomatch": "^4.0.7",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/picomatch": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.0"
+  }
+}
