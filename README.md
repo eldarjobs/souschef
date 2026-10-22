@@ -145,9 +145,22 @@ in two modules, no test script), it says so instead of guessing. In a monorepo, 
 list `modules` in the config. v1 keys (`test_command`, `write_globs`, `timeout_minutes`) are still
 read.
 
+### Speed
+
+- **Only the new tests run** (`testScope: "changed"`, the default). For `dotnet test`, souschef
+  runs the test project that owns the changed test files, filtered to those classes, keeping your
+  other arguments and filter. Set `"testScope": "full"` to always run the configured command.
+- **Warm builds** (`reuseWorkspace: true`, the default). Each repository gets one reusable
+  worktree (`pool-<hash>` in the workspace folder). Between tasks it is reset to HEAD and stripped
+  of untracked files, but ignored build output (`bin`, `obj`, artifacts) stays, and unchanged
+  sources keep their timestamps, so the first task builds cold and later ones build incrementally.
+  If the pool is busy, a task falls back to a fresh worktree.
+- On Windows, excluding the workspace folder (`%TEMP%\souschef`) from antivirus scanning speeds up
+  git and builds noticeably.
+
 ## Safety
 
-- **Isolation.** The agent works in a temporary git worktree (or a copy, for non-git projects).
+- **Isolation.** The agent works in a separate git worktree (or a copy, for non-git projects).
   Your uncommitted changes are copied in, so the agent tests what you have now. Your checkout is
   not touched while it runs. `node_modules` / `.venv` are linked in, not copied.
 - **Scope check.** Every changed path is checked against `writeGlobs` and a protected list

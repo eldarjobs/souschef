@@ -14,6 +14,7 @@ import { ActivityLog, formatEntry, latestTaskId } from '../../src/reporting/acti
 import { normalizeRelative, PathPolicy } from '../../src/security/path-policy.js';
 import { Redactor } from '../../src/security/redact.js';
 import { TaskStore } from '../../src/storage/task-store.js';
+import { narrowDotnetTest } from '../../src/validation/targeted-tests.js';
 import { parseTestCounts } from '../../src/validation/test-runner.js';
 
 const tmp = (name: string) => mkdtempSync(path.join(tmpdir(), `souschef-${name}-`));
@@ -242,4 +243,38 @@ test('task store persists across reopen and makes apply idempotent', () => {
   assert.equal(s2.getLogs('t1').testOutput, 'ok');
   assert.equal(s2.getFiles('t1')[0]?.path, 'tests/a.test.js');
   s2.close();
+});
+
+test('dotnet test is narrowed to the owning test project and the changed test classes', () => {
+  const root = tmp('narrow');
+  mkdirSync(path.join(root, 'SkyChef', 'Tests', 'Infra.Tests', 'Orders'), { recursive: true });
+  writeFileSync(path.join(root, 'SkyChef', 'Tests', 'Infra.Tests', 'Infra.Tests.csproj'), '<Project/>');
+  const spec = {
+    executable: 'dotnet',
+    args: ['test', 'SkyChef/SkyChef.sln', '--artifacts-path', '.tools/artifacts', '-p:SkipVueBuild=true', '--filter', 'Category!=SqlServer'],
+    cwd: '.'
+  };
+  const runs = narrowDotnetTest(
+    spec,
+    ['SkyChef/Tests/Infra.Tests/Orders/OrderTests.cs', 'SkyChef/Tests/Infra.Tests/Orders/LineTests.cs', 'SkyChef/Tests/Infra.Tests/data.json'],
+    root,
+    '.'
+  );
+  assert.deepEqual(runs, [
+    {
+      executable: 'dotnet',
+      args: [
+        'test',
+        'SkyChef/Tests/Infra.Tests/Infra.Tests.csproj',
+        '--artifacts-path',
+        '.tools/artifacts',
+        '-p:SkipVueBuild=true',
+        '--filter',
+        '(Category!=SqlServer)&(FullyQualifiedName~OrderTests|FullyQualifiedName~LineTests)'
+      ],
+      cwd: '.'
+    }
+  ]);
+  assert.equal(narrowDotnetTest({ executable: 'npm', args: ['test'], cwd: '.' }, ['a.test.js'], root, '.'), undefined);
+  assert.equal(narrowDotnetTest(spec, ['loose/NoProjectTests.cs'], root, '.'), undefined, 'no owning project: run everything');
 });

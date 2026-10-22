@@ -120,6 +120,8 @@ export interface CompactResult {
   build: CheckStatus;
   tests: {
     command?: string;
+    /** changed: only the test classes the agent wrote; full: the configured command. */
+    scope?: 'changed' | 'full';
     created?: number;
     passed?: number;
     failed?: number;

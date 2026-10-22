@@ -110,6 +110,16 @@ export const configSchema = z.object({
     .array(z.string())
     .default(['.git', 'node_modules', '.venv', 'venv', 'bin', 'obj', 'target', 'dist', '__pycache__', '.pytest_cache']),
   keepWorkspace: z.boolean().default(false),
+  /**
+   * Reuse one worktree per repository between tasks (reset to HEAD each time, ignored build
+   * output kept), so builds are incremental instead of starting cold.
+   */
+  reuseWorkspace: z.boolean().default(true),
+  /**
+   * changed: run only the tests the agent wrote (for `dotnet test`: the owning test project,
+   * filtered to the changed test classes). full: always run the configured command as is.
+   */
+  testScope: z.enum(['changed', 'full']).default('changed'),
   /** Extra project rules appended to every agent prompt. */
   rules: z.array(z.string()).default([])
 });

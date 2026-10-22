@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -71,7 +71,26 @@ test('happy path: tests written, verified, applied; uncommitted work preserved',
   assert.match(store.getFiles(taskId)[0]!.diff, /\+test\('add'/);
   assert.deepEqual(readdirSync(environment.workspaceRoot).filter((n) => n.startsWith(taskId)), [], 'workspace cleaned up');
   const worktrees = execFileSync('git', ['worktree', 'list'], { cwd: repo, encoding: 'utf8' }).trim().split('\n');
-  assert.equal(worktrees.length, 1, 'temporary worktree removed');
+  assert.equal(worktrees.length, 2, 'main checkout + the pooled worktree');
+  assert.match(worktrees[1]!, /pool-[0-9a-f]{12}/);
+  assert.deepEqual(readdirSync(environment.workspaceRoot).filter((n) => n.endsWith('.lock')), [], 'pool lock released');
+});
+
+test('pooled worktree is reused: build output kept, leftovers removed, unchanged files untouched', async () => {
+  const first = await runToEnd('pass');
+  const pool = path.join(first.environment.workspaceRoot, readdirSync(first.environment.workspaceRoot).find((n) => /^pool-[0-9a-f]+$/.test(n))!);
+  mkdirSync(path.join(pool, 'bin'), { recursive: true });
+  writeFileSync(path.join(pool, 'bin', 'build-cache.txt'), 'warm');
+  writeFileSync(path.join(pool, 'leftover.txt'), 'from an earlier agent');
+  const before = statSync(path.join(pool, 'package.json')).mtimeMs;
+
+  const { taskId } = await first.manager.delegate({ taskType: 'tests', objective: 'Second pass', projectRoot: first.repo, targetPaths: ['src/math.js'] });
+  const second = await first.manager.waitFor(taskId, 120_000);
+  assert.equal(second!.workspacePath ?? pool, pool);
+  assert.ok(existsSync(path.join(pool, 'bin', 'build-cache.txt')), 'ignored build output survives');
+  assert.ok(!existsSync(path.join(pool, 'leftover.txt')), 'untracked leftovers are cleaned');
+  assert.equal(statSync(path.join(pool, 'package.json')).mtimeMs, before, 'unchanged files are not rewritten');
+  assert.equal(execFileSync('git', ['worktree', 'list'], { cwd: first.repo, encoding: 'utf8' }).trim().split('\n').length, 2);
 });
 
 test('live activity: agent steps are recorded and `watch` follows the task to its end', async () => {

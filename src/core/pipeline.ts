@@ -8,6 +8,7 @@ import { PathPolicy } from '../security/path-policy.js';
 import type { StoredFileDiff, StoredLogs } from '../storage/task-store.js';
 import type { AgentUsage, CheckStatus, CommandSpec, CompactResult, TaskPhase, TaskRecord, TaskStatus, TestPlan } from '../types.js';
 import { applyFiles, checkScope, findConflicts, type ScopeReport } from '../validation/result-validator.js';
+import { narrowDotnetTest } from '../validation/targeted-tests.js';
 import { formatCommand, TestRunner, type TestRunOutcome } from '../validation/test-runner.js';
 import type { Workspace, WorkspaceManager } from '../workspace/workspace-manager.js';
 import {
@@ -63,6 +64,7 @@ interface RunState {
   report?: AgentReport;
   testsCreated: number;
   lastTest?: TestRunOutcome;
+  testScope?: 'changed' | 'full';
   lastBuild?: TestRunOutcome;
   scope?: ScopeReport;
   applied: boolean;
@@ -120,7 +122,8 @@ export async function runTestsPipeline(ctx: PipelineContext, deps: PipelineDeps)
       projectRoot: input.projectRoot,
       workspaceRoot: ctx.workspaceRoot,
       linkDirs: config.linkDirs,
-      copyExclude: config.copyExclude
+      copyExclude: config.copyExclude,
+      reuse: config.reuseWorkspace
     });
   } catch (err) {
     return done('FAILED', `Workspace preparation failed: ${(err as Error).message}`);
@@ -239,7 +242,15 @@ export async function runTestsPipeline(ctx: PipelineContext, deps: PipelineDeps)
       if (scope.files.length === 0) return done('FAILED', 'Agent finished without changing any file');
 
       let failureOutput: string | undefined;
-      if (plan.build) {
+      const testCwd = path.posix.join(sub || '.', plan.test.cwd);
+      const changedFiles = scope.files.filter((f) => f.change !== 'D').map((f) => f.path);
+      // `dotnet test <project>` builds just that project and its references, so the separate
+      // solution-wide build step is skipped too.
+      const narrowed = config.testScope === 'changed' ? narrowDotnetTest(plan.test, changedFiles, ws.root, testCwd) : undefined;
+      if (narrowed) {
+        state.build = 'SKIPPED';
+        state.testScope = 'changed';
+      } else if (plan.build) {
         ctx.setPhase('building', `Running ${formatCommand(plan.build)}`);
         state.lastBuild = await testRunner.run(inWs(plan.build), ws.root, {
           timeoutMs: commandTimeoutMs,
@@ -256,12 +267,20 @@ export async function runTestsPipeline(ctx: PipelineContext, deps: PipelineDeps)
       if (stopAfterBuild) return stopAfterBuild;
 
       if (!failureOutput) {
-        ctx.setPhase('testing', `Running ${formatCommand(plan.test)}`);
-        state.lastTest = await testRunner.run(inWs(plan.test), ws.root, {
-          timeoutMs: commandTimeoutMs,
-          maxOutputBytes: config.maxOutputBytes,
-          taskId: task.id
-        });
+        const runs = (narrowed ?? [plan.test]).map(inWs);
+        const outcomes: TestRunOutcome[] = [];
+        for (const spec of runs) {
+          ctx.setPhase('testing', `Running ${formatCommand(spec)}`);
+          outcomes.push(
+            await testRunner.run(spec, ws.root, {
+              timeoutMs: commandTimeoutMs,
+              maxOutputBytes: config.maxOutputBytes,
+              taskId: task.id
+            })
+          );
+          if (interrupted()) break;
+        }
+        state.lastTest = mergeOutcomes(outcomes);
         logs.testOutput = state.lastTest.output;
         if (state.lastTest.exitCode !== 0 || state.lastTest.timedOut) failureOutput = state.lastTest.output;
       }
@@ -323,7 +342,7 @@ function compact(taskId: string, status: TaskStatus, s: RunState): CompactResult
     execution: s.execution,
     build: s.build,
     tests: {
-      ...(s.lastTest ? { command: s.lastTest.command } : {}),
+      ...(s.lastTest ? { command: s.lastTest.command, scope: s.testScope ?? 'full' } : {}),
       created: s.testsCreated || undefined,
       passed: s.lastTest?.counts.passed,
       failed: s.lastTest?.counts.failed,
@@ -358,3 +377,19 @@ function changedPathsFromDiff(diff: string): string[] {
 }
 
 export type { TestPlan };
+
+/** Several targeted runs reported as one: first failure wins, counts add up. */
+function mergeOutcomes(outcomes: TestRunOutcome[]): TestRunOutcome {
+  if (outcomes.length === 1) return outcomes[0]!;
+  const sum = (k: 'passed' | 'failed' | 'skipped') =>
+    outcomes.some((o) => o.counts[k] !== undefined) ? outcomes.reduce((n, o) => n + (o.counts[k] ?? 0), 0) : undefined;
+  const failed = outcomes.find((o) => o.exitCode !== 0 || o.timedOut);
+  return {
+    ...(failed ?? outcomes[outcomes.length - 1]!),
+    command: outcomes.map((o) => o.command).join(' ; '),
+    output: outcomes.map((o) => o.output).join('\n'),
+    truncated: outcomes.some((o) => o.truncated),
+    durationMs: outcomes.reduce((n, o) => n + o.durationMs, 0),
+    counts: { passed: sum('passed'), failed: sum('failed'), skipped: sum('skipped') }
+  };
+}

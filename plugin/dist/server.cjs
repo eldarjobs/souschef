@@ -290,8 +290,8 @@ var require_utils2 = __commonJS({
       }
       return output2;
     };
-    exports2.basename = (path16, { windows } = {}) => {
-      const segs = path16.split(windows ? /[\\/]/ : "/");
+    exports2.basename = (path17, { windows } = {}) => {
+      const segs = path17.split(windows ? /[\\/]/ : "/");
       const last = segs[segs.length - 1];
       if (last === "") {
         return segs[segs.length - 2];
@@ -1819,7 +1819,7 @@ __export(server_exports, {
   eventsDir: () => eventsDir
 });
 module.exports = __toCommonJS(server_exports);
-var import_node_path15 = __toESM(require("node:path"), 1);
+var import_node_path16 = __toESM(require("node:path"), 1);
 
 // node_modules/@modelcontextprotocol/server/dist/chunk-Br0eD_fh.mjs
 var __create2 = Object.create;
@@ -2695,10 +2695,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path16) {
-  if (!path16)
+function getElementAtPath(obj, path17) {
+  if (!path17)
     return obj;
-  return path16.reduce((acc, key) => acc?.[key], obj);
+  return path17.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -3038,11 +3038,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path16, issues) {
+function prefixIssues(path17, issues) {
   return issues.map((iss) => {
     var _a3;
     (_a3 = iss).path ?? (_a3.path = []);
-    iss.path.unshift(path16);
+    iss.path.unshift(path17);
     return iss;
   });
 }
@@ -3504,16 +3504,16 @@ function flattenError(error62, mapper = (issue2) => issue2.message) {
 }
 function formatError(error62, mapper = (issue2) => issue2.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error63, path16 = []) => {
+  const processError = (error63, path17 = []) => {
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path16, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path17, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path16, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path17, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path16, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path17, ...issue2.path]);
       } else {
-        const fullpath = [...path16, ...issue2.path];
+        const fullpath = [...path17, ...issue2.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue2));
         } else {
@@ -3552,17 +3552,17 @@ function formatError(error62, mapper = (issue2) => issue2.message) {
 }
 function treeifyError(error62, mapper = (issue2) => issue2.message) {
   const result = { errors: [] };
-  const processError = (error63, path16 = []) => {
+  const processError = (error63, path17 = []) => {
     var _a3;
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path16, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path17, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path16, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path17, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path16, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path17, ...issue2.path]);
       } else {
-        const fullpath = [...path16, ...issue2.path];
+        const fullpath = [...path17, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -3601,8 +3601,8 @@ function treeifyError(error62, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path16 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path16) {
+  const path17 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path17) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -20740,13 +20740,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path16 = ref.slice(1).split("/").filter(Boolean);
-  if (path16.length === 0) {
+  const path17 = ref.slice(1).split("/").filter(Boolean);
+  if (path17.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path16[0] === defsKey) {
-    const key = path16[1] === void 0 ? void 0 : decodeJSONPointerSegment(path16[1]);
+  if (path17[0] === defsKey) {
+    const key = path17[1] === void 0 ? void 0 : decodeJSONPointerSegment(path17[1]);
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -25171,9 +25171,9 @@ var rev2026Codec = {
     });
     const parsed = buildSchemas2026().RequestMetaEnvelopeSchema.safeParse(meta3);
     if (!parsed.success) for (const issue2 of parsed.error.issues) {
-      const path16 = issue2.path.map(String);
-      const key = path16.length > 0 ? path16.join(".") : "_meta";
-      if (path16.length === 1 && issues.some((existing) => existing.key === key && existing.problem === "missing")) continue;
+      const path17 = issue2.path.map(String);
+      const key = path17.length > 0 ? path17.join(".") : "_meta";
+      if (path17.length === 1 && issues.some((existing) => existing.key === key && existing.problem === "missing")) continue;
       issues.push({
         key,
         problem: issue2.message
@@ -25481,29 +25481,29 @@ var PERMITTED_X_MCP_HEADER_TYPES = /* @__PURE__ */ new Set([
 function scanXMcpHeaderDeclarations(inputSchema) {
   const declarations = [];
   const seenLower = /* @__PURE__ */ new Map();
-  const visit2 = (node2, path16, reachable) => {
+  const visit2 = (node2, path17, reachable) => {
     if (node2 === null || typeof node2 !== "object") return void 0;
     const schema = node2;
     if (X_MCP_HEADER_KEY in schema) {
-      if (!reachable || path16.length === 0) return `${pathName(path16)}: x-mcp-header is only permitted on properties statically reachable via a chain of 'properties' keys (not under items, additionalProperties, oneOf/anyOf/allOf/not, if/then/else, or $ref)`;
+      if (!reachable || path17.length === 0) return `${pathName(path17)}: x-mcp-header is only permitted on properties statically reachable via a chain of 'properties' keys (not under items, additionalProperties, oneOf/anyOf/allOf/not, if/then/else, or $ref)`;
       const raw = schema[X_MCP_HEADER_KEY];
-      if (typeof raw !== "string" || raw.length === 0) return `${pathName(path16)}: x-mcp-header MUST be a non-empty string`;
-      if (!RFC9110_TOKEN.test(raw)) return `${pathName(path16)}: x-mcp-header '${raw}' is not a valid RFC 9110 token (no spaces, control characters or HTTP delimiters)`;
+      if (typeof raw !== "string" || raw.length === 0) return `${pathName(path17)}: x-mcp-header MUST be a non-empty string`;
+      if (!RFC9110_TOKEN.test(raw)) return `${pathName(path17)}: x-mcp-header '${raw}' is not a valid RFC 9110 token (no spaces, control characters or HTTP delimiters)`;
       const type = typeof schema.type === "string" ? schema.type : void 0;
-      if (type === void 0 || !PERMITTED_X_MCP_HEADER_TYPES.has(type)) return `${pathName(path16)}: x-mcp-header is only permitted on primitive-typed properties (string, integer, boolean); got ${type ?? "<none>"}`;
+      if (type === void 0 || !PERMITTED_X_MCP_HEADER_TYPES.has(type)) return `${pathName(path17)}: x-mcp-header is only permitted on primitive-typed properties (string, integer, boolean); got ${type ?? "<none>"}`;
       const lower = raw.toLowerCase();
       const prior = seenLower.get(lower);
       if (prior !== void 0) return `x-mcp-header '${raw}' is not case-insensitively unique (also declared as '${prior}')`;
       seenLower.set(lower, raw);
       declarations.push({
-        path: path16,
+        path: path17,
         headerName: raw,
         type
       });
     }
     const properties = schema.properties;
     if (properties !== null && typeof properties === "object") for (const [key, child] of Object.entries(properties)) {
-      const fault$1 = visit2(child, [...path16, key], reachable);
+      const fault$1 = visit2(child, [...path17, key], reachable);
       if (fault$1 !== void 0) return fault$1;
     }
     for (const k of NON_REACHABLE_SUBSCHEMA_KEYWORDS) {
@@ -25511,7 +25511,7 @@ function scanXMcpHeaderDeclarations(inputSchema) {
       if (sub === void 0) continue;
       const branches = Array.isArray(sub) ? sub : sub !== null && typeof sub === "object" && OBJECT_VALUED_SUBSCHEMA_KEYWORDS.has(k) ? Object.values(sub) : [sub];
       for (const branch of branches) {
-        const fault$1 = visit2(branch, [...path16, `<${k}>`], false);
+        const fault$1 = visit2(branch, [...path17, `<${k}>`], false);
         if (fault$1 !== void 0) return fault$1;
       }
     }
@@ -25551,8 +25551,8 @@ var OBJECT_VALUED_SUBSCHEMA_KEYWORDS = /* @__PURE__ */ new Set([
   "$defs",
   "definitions"
 ]);
-function pathName(path16) {
-  return path16.length === 0 ? "<root>" : path16.join(".");
+function pathName(path17) {
+  return path17.length === 0 ? "<root>" : path17.join(".");
 }
 var HEADER_MISMATCH_ERROR_CODE = -32020;
 var INBOUND_VALIDATION_LADDER = [
@@ -25802,7 +25802,7 @@ var PROPERTY_KEYS_BY_TYPE = {
   array: shapeKeys([UntitledMultiSelectEnumSchemaSchema, TitledMultiSelectEnumSchemaSchema])
 };
 var SUPPORTED_STRING_FORMATS = new Set(StringSchemaSchema.shape.format.unwrap().options);
-function walkProperty(node2, path16, vendor, unsupported) {
+function walkProperty(node2, path17, vendor, unsupported) {
   if (!isJsonObject(node2)) return node2;
   const allowedKeys = typeof node2.type === "string" && Object.hasOwn(PROPERTY_KEYS_BY_TYPE, node2.type) ? PROPERTY_KEYS_BY_TYPE[node2.type] : void 0;
   if (allowedKeys === void 0) return node2;
@@ -25810,8 +25810,8 @@ function walkProperty(node2, path16, vendor, unsupported) {
   for (const [key, value] of Object.entries(node2)) if (allowedKeys.has(key) || isAnnotationOnlyJsonSchemaKeyword(key)) pruned[key] = value;
   else if (key === "pattern" && node2.type === "string" && typeof node2.format === "string") {
     if (!SUPPORTED_STRING_FORMATS.has(node2.format)) pruned[key] = value;
-    else if (typeof value !== "string" || !isLibraryFormatPattern(node2.format, value, vendor)) unsupported.push(`${path16}.${key}`);
-  } else unsupported.push(`${path16}.${key}`);
+    else if (typeof value !== "string" || !isLibraryFormatPattern(node2.format, value, vendor)) unsupported.push(`${path17}.${key}`);
+  } else unsupported.push(`${path17}.${key}`);
   return pruned;
 }
 function walkRequestedSchema(converted, vendor) {
@@ -25828,11 +25828,11 @@ function describeUnsupportedProperties(pruned, fallback) {
   const offenders = Object.entries(pruned.properties).filter(([, node2]) => !parseSchema(PrimitiveSchemaDefinitionSchema, node2).success).map(([name]) => `properties.${name}`);
   return offenders.length > 0 ? offenders.join(", ") : fallback;
 }
-function findDroppedConstraintPaths(original, parsed, path16 = "") {
-  if (Array.isArray(original) && Array.isArray(parsed)) return original.flatMap((item, index) => findDroppedConstraintPaths(item, parsed[index], `${path16}[${index}]`));
+function findDroppedConstraintPaths(original, parsed, path17 = "") {
+  if (Array.isArray(original) && Array.isArray(parsed)) return original.flatMap((item, index) => findDroppedConstraintPaths(item, parsed[index], `${path17}[${index}]`));
   if (!isJsonObject(original) || !isJsonObject(parsed)) return [];
   return Object.entries(original).flatMap(([key, value]) => {
-    const childPath = path16 ? `${path16}.${key}` : key;
+    const childPath = path17 ? `${path17}.${key}` : key;
     if (!Object.prototype.hasOwnProperty.call(parsed, key)) return isAnnotationOnlyJsonSchemaKeyword(key) ? [] : [childPath];
     return findDroppedConstraintPaths(value, parsed[key], childPath);
   });
@@ -29917,8 +29917,8 @@ var require_utils = /* @__PURE__ */ __commonJSMin(((exports2, module2) => {
     for (let i = 0; i < str.length; i++) if (str[i] === token) ind++;
     return ind;
   }
-  function removeDotSegments(path16) {
-    let input2 = path16;
+  function removeDotSegments(path17) {
+    let input2 = path17;
     const output2 = [];
     let nextSlash = -1;
     let len = 0;
@@ -30071,8 +30071,8 @@ var require_schemes = /* @__PURE__ */ __commonJSMin(((exports2, module2) => {
       wsComponent.secure = void 0;
     }
     if (wsComponent.resourceName) {
-      const [path16, query] = wsComponent.resourceName.split("?");
-      wsComponent.path = path16 && path16 !== "/" ? path16 : void 0;
+      const [path17, query] = wsComponent.resourceName.split("?");
+      wsComponent.path = path17 && path17 !== "/" ? path17 : void 0;
       wsComponent.query = query;
       wsComponent.resourceName = void 0;
     }
@@ -36227,6 +36227,16 @@ var configSchema = external_exports.object({
   /** Excluded when the project is not a git repository and must be copied. */
   copyExclude: external_exports.array(external_exports.string()).default([".git", "node_modules", ".venv", "venv", "bin", "obj", "target", "dist", "__pycache__", ".pytest_cache"]),
   keepWorkspace: external_exports.boolean().default(false),
+  /**
+   * Reuse one worktree per repository between tasks (reset to HEAD each time, ignored build
+   * output kept), so builds are incremental instead of starting cold.
+   */
+  reuseWorkspace: external_exports.boolean().default(true),
+  /**
+   * changed: run only the tests the agent wrote (for `dotnet test`: the owning test project,
+   * filtered to the changed test classes). full: always run the configured command as is.
+   */
+  testScope: external_exports.enum(["changed", "full"]).default("changed"),
   /** Extra project rules appended to every agent prompt. */
   rules: external_exports.array(external_exports.string()).default([])
 });
@@ -36438,8 +36448,8 @@ var ProcessRunner = class {
 // src/core/task-manager.ts
 var import_node_crypto = require("node:crypto");
 var import_node_events = require("node:events");
-var import_node_fs10 = require("node:fs");
-var import_node_path12 = __toESM(require("node:path"), 1);
+var import_node_fs11 = require("node:fs");
+var import_node_path13 = __toESM(require("node:path"), 1);
 
 // src/security/git-baseline.ts
 var import_node_child_process2 = require("node:child_process");
@@ -36536,7 +36546,7 @@ var TERMINAL_STATUSES = [
 ];
 
 // src/core/pipeline.ts
-var import_node_path11 = __toESM(require("node:path"), 1);
+var import_node_path12 = __toESM(require("node:path"), 1);
 
 // src/adapters/agent-adapter.ts
 function addUsage(a, b) {
@@ -37076,18 +37086,80 @@ function readIfFile(p) {
   }
 }
 
-// src/validation/test-runner.ts
+// src/validation/targeted-tests.ts
+var import_node_fs10 = require("node:fs");
 var import_node_path10 = __toESM(require("node:path"), 1);
+var SOURCE = /\.(cs|fs|vb)$/i;
+var PROJECT = /\.(cs|fs|vb)proj$/i;
+function narrowDotnetTest(test, changedFiles, root, cwd) {
+  const exe = import_node_path10.default.basename(test.executable).replace(/\.exe$/i, "").toLowerCase();
+  if (exe !== "dotnet" || test.args[0] !== "test") return void 0;
+  const sources = changedFiles.filter((f) => SOURCE.test(f));
+  if (sources.length === 0) return void 0;
+  const byProject = /* @__PURE__ */ new Map();
+  for (const file2 of sources) {
+    const project = owningProject(root, file2);
+    if (!project) return void 0;
+    let classes = byProject.get(project);
+    if (!classes) byProject.set(project, classes = /* @__PURE__ */ new Set());
+    classes.add(import_node_path10.default.basename(file2).replace(SOURCE, ""));
+  }
+  const { rest, filter } = splitArgs(test.args.slice(1));
+  const cwdAbs = import_node_path10.default.resolve(root, cwd);
+  return [...byProject].map(([project, classes]) => {
+    const own2 = [...classes].map((c) => `FullyQualifiedName~${c}`).join("|");
+    const combined = filter ? `(${filter})&(${own2})` : own2;
+    const rel = import_node_path10.default.relative(cwdAbs, import_node_path10.default.resolve(root, project)).split(import_node_path10.default.sep).join("/");
+    return { ...test, args: ["test", rel, ...rest, "--filter", combined] };
+  });
+}
+function splitArgs(args) {
+  const rest = [];
+  let filter;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (i === 0 && !a.startsWith("-")) continue;
+    if (a === "--no-build") continue;
+    if (a === "--filter") {
+      filter = args[++i];
+      continue;
+    }
+    if (a.startsWith("--filter=")) {
+      filter = a.slice("--filter=".length);
+      continue;
+    }
+    rest.push(a);
+  }
+  return { rest, filter };
+}
+function owningProject(root, file2) {
+  let dir = import_node_path10.default.posix.dirname(file2);
+  for (; ; ) {
+    let entries = [];
+    try {
+      entries = (0, import_node_fs10.readdirSync)(import_node_path10.default.join(root, dir));
+    } catch {
+    }
+    const projects = entries.filter((e) => PROJECT.test(e));
+    if (projects.length === 1) return dir === "." ? projects[0] : `${dir}/${projects[0]}`;
+    if (projects.length > 1) return void 0;
+    if (dir === "." || dir === "") return void 0;
+    dir = import_node_path10.default.posix.dirname(dir);
+  }
+}
+
+// src/validation/test-runner.ts
+var import_node_path11 = __toESM(require("node:path"), 1);
 var TestRunner = class {
   constructor(deps) {
     this.deps = deps;
   }
   deps;
   async run(spec, workspaceRoot, opts) {
-    const cwd = import_node_path10.default.resolve(workspaceRoot, spec.cwd);
+    const cwd = import_node_path11.default.resolve(workspaceRoot, spec.cwd);
     if (!isInside(workspaceRoot, cwd)) throw new Error(`Command cwd "${spec.cwd}" escapes the workspace`);
-    const executable = /[\\/]/.test(spec.executable) && !import_node_path10.default.isAbsolute(spec.executable) ? import_node_path10.default.resolve(cwd, spec.executable) : spec.executable;
-    if (import_node_path10.default.isAbsolute(executable) && /[\\/]/.test(spec.executable) && !import_node_path10.default.isAbsolute(spec.executable) && !isInside(workspaceRoot, executable)) {
+    const executable = /[\\/]/.test(spec.executable) && !import_node_path11.default.isAbsolute(spec.executable) ? import_node_path11.default.resolve(cwd, spec.executable) : spec.executable;
+    if (import_node_path11.default.isAbsolute(executable) && /[\\/]/.test(spec.executable) && !import_node_path11.default.isAbsolute(spec.executable) && !isInside(workspaceRoot, executable)) {
       throw new Error(`Executable "${spec.executable}" escapes the workspace`);
     }
     const resolved = this.deps.policy.resolve({ ...spec, executable });
@@ -37193,7 +37265,12 @@ var RULES = `Hard rules:
 - Never delete existing tests and never weaken assertions to make tests pass.
 - Do not install packages or change dependencies.
 - Follow the conventions of the existing tests (framework, naming, folder layout).
-- SousChef runs the test command itself after you finish; you may run it too if tools allow.`;
+- SousChef runs the full test command itself after you finish. Builds and test runs are slow:
+  when you run tests yourself, build and run only the test project you changed, filtered to the
+  tests you wrote (e.g. dotnet test <project> --filter FullyQualifiedName~<YourTestClass>),
+  never the whole solution, and do not re-run them without a change in between.
+- The uncommitted changes listed above are already in your working copy: read those files
+  directly. git status/diff here is slow and shows nothing more.`;
 function buildInitialPrompt(ctx) {
   const where = (p) => ctx.projectSubdir ? `${ctx.projectSubdir}/${p}` : p;
   const lines = [
@@ -37283,7 +37360,8 @@ async function runTestsPipeline(ctx, deps) {
       projectRoot: input2.projectRoot,
       workspaceRoot: ctx.workspaceRoot,
       linkDirs: config2.linkDirs,
-      copyExclude: config2.copyExclude
+      copyExclude: config2.copyExclude,
+      reuse: config2.reuseWorkspace
     });
   } catch (err) {
     return done("FAILED", `Workspace preparation failed: ${err.message}`);
@@ -37309,7 +37387,7 @@ async function runTestsPipeline(ctx, deps) {
       protectedGlobs: config2.protectedGlobs.map(prefixGlob),
       allowSymlinks: config2.allowSymlinks
     });
-    const inWs = (spec) => ({ ...spec, cwd: import_node_path11.default.posix.join(sub || ".", spec.cwd) });
+    const inWs = (spec) => ({ ...spec, cwd: import_node_path12.default.posix.join(sub || ".", spec.cwd) });
     const promptCtx = {
       objective: input2.objective,
       targetPaths: input2.targetPaths,
@@ -37390,7 +37468,13 @@ async function runTestsPipeline(ctx, deps) {
       if (scope.violations.length > 0) return done("NEEDS_REVIEW", "Agent changed files outside the allowed test paths");
       if (scope.files.length === 0) return done("FAILED", "Agent finished without changing any file");
       let failureOutput;
-      if (plan.build) {
+      const testCwd = import_node_path12.default.posix.join(sub || ".", plan.test.cwd);
+      const changedFiles = scope.files.filter((f) => f.change !== "D").map((f) => f.path);
+      const narrowed = config2.testScope === "changed" ? narrowDotnetTest(plan.test, changedFiles, ws.root, testCwd) : void 0;
+      if (narrowed) {
+        state.build = "SKIPPED";
+        state.testScope = "changed";
+      } else if (plan.build) {
         ctx.setPhase("building", `Running ${formatCommand(plan.build)}`);
         state.lastBuild = await testRunner.run(inWs(plan.build), ws.root, {
           timeoutMs: commandTimeoutMs,
@@ -37406,12 +37490,20 @@ async function runTestsPipeline(ctx, deps) {
       const stopAfterBuild = interrupted();
       if (stopAfterBuild) return stopAfterBuild;
       if (!failureOutput) {
-        ctx.setPhase("testing", `Running ${formatCommand(plan.test)}`);
-        state.lastTest = await testRunner.run(inWs(plan.test), ws.root, {
-          timeoutMs: commandTimeoutMs,
-          maxOutputBytes: config2.maxOutputBytes,
-          taskId: task.id
-        });
+        const runs = (narrowed ?? [plan.test]).map(inWs);
+        const outcomes = [];
+        for (const spec of runs) {
+          ctx.setPhase("testing", `Running ${formatCommand(spec)}`);
+          outcomes.push(
+            await testRunner.run(spec, ws.root, {
+              timeoutMs: commandTimeoutMs,
+              maxOutputBytes: config2.maxOutputBytes,
+              taskId: task.id
+            })
+          );
+          if (interrupted()) break;
+        }
+        state.lastTest = mergeOutcomes(outcomes);
         logs.testOutput = state.lastTest.output;
         if (state.lastTest.exitCode !== 0 || state.lastTest.timedOut) failureOutput = state.lastTest.output;
       }
@@ -37468,7 +37560,7 @@ function compact(taskId, status, s) {
     execution: s.execution,
     build: s.build,
     tests: {
-      ...s.lastTest ? { command: s.lastTest.command } : {},
+      ...s.lastTest ? { command: s.lastTest.command, scope: s.testScope ?? "full" } : {},
       created: s.testsCreated || void 0,
       passed: s.lastTest?.counts.passed,
       failed: s.lastTest?.counts.failed,
@@ -37499,6 +37591,19 @@ function changedPathsFromDiff(diff) {
   const out = /* @__PURE__ */ new Set();
   for (const m of diff.matchAll(/^diff --git a\/(.+?) b\/(.+)$/gm)) out.add(m[2]);
   return [...out];
+}
+function mergeOutcomes(outcomes) {
+  if (outcomes.length === 1) return outcomes[0];
+  const sum = (k) => outcomes.some((o) => o.counts[k] !== void 0) ? outcomes.reduce((n, o) => n + (o.counts[k] ?? 0), 0) : void 0;
+  const failed = outcomes.find((o) => o.exitCode !== 0 || o.timedOut);
+  return {
+    ...failed ?? outcomes[outcomes.length - 1],
+    command: outcomes.map((o) => o.command).join(" ; "),
+    output: outcomes.map((o) => o.output).join("\n"),
+    truncated: outcomes.some((o) => o.truncated),
+    durationMs: outcomes.reduce((n, o) => n + o.durationMs, 0),
+    counts: { passed: sum("passed"), failed: sum("failed"), skipped: sum("skipped") }
+  };
 }
 
 // src/core/state-machine.ts
@@ -37554,17 +37659,18 @@ var TaskManager = class {
         error: "SousChef restarted while this task was active; delegate it again.",
         pid: null
       });
-      if (t.workspacePath && (0, import_node_fs10.existsSync)(t.workspacePath) && import_node_path12.default.dirname(t.workspacePath) === this.opts.workspaceRoot) {
-        (0, import_node_fs10.rmSync)(t.workspacePath, { recursive: true, force: true });
+      const ws = t.workspacePath;
+      if (ws && import_node_path13.default.dirname(ws) === this.opts.workspaceRoot && import_node_path13.default.basename(ws).startsWith("task_") && (0, import_node_fs11.existsSync)(ws)) {
+        (0, import_node_fs11.rmSync)(ws, { recursive: true, force: true });
       }
     }
     return stale.length;
   }
   async delegate(raw) {
     if (!TASK_TYPES.includes(raw.taskType)) throw new Error(`Task type "${raw.taskType}" is not supported yet.`);
-    const resolved = import_node_path12.default.resolve(raw.projectRoot);
-    if (!(0, import_node_fs10.existsSync)(resolved) || !(0, import_node_fs10.statSync)(resolved).isDirectory()) throw new Error(`projectRoot "${raw.projectRoot}" is not a directory`);
-    const projectRoot = import_node_fs10.realpathSync.native(resolved);
+    const resolved = import_node_path13.default.resolve(raw.projectRoot);
+    if (!(0, import_node_fs11.existsSync)(resolved) || !(0, import_node_fs11.statSync)(resolved).isDirectory()) throw new Error(`projectRoot "${raw.projectRoot}" is not a directory`);
+    const projectRoot = import_node_fs11.realpathSync.native(resolved);
     if (raw.continueFrom) {
       const prev = this.opts.store.get(raw.continueFrom);
       if (!prev) throw new Error(`continueFrom: unknown task ${raw.continueFrom}`);
@@ -37674,7 +37780,7 @@ var TaskManager = class {
         {
           task,
           workspaceRoot: this.opts.workspaceRoot,
-          scratchDir: import_node_path12.default.join(this.opts.workspaceRoot, `${taskId}.scratch`),
+          scratchDir: import_node_path13.default.join(this.opts.workspaceRoot, `${taskId}.scratch`),
           resumeSessionId,
           setStatus: (s) => {
             const cur = this.get(taskId).status;
@@ -37702,7 +37808,7 @@ var TaskManager = class {
       clearTimeout(active.timer);
       this.active.delete(taskId);
       this.opts.registry.forget(taskId);
-      (0, import_node_fs10.rmSync)(import_node_path12.default.join(this.opts.workspaceRoot, `${taskId}.scratch`), { recursive: true, force: true });
+      (0, import_node_fs11.rmSync)(import_node_path13.default.join(this.opts.workspaceRoot, `${taskId}.scratch`), { recursive: true, force: true });
     }
     if (active.timedOut && outcome.status !== "TIMED_OUT" && outcome.status !== "COMPLETED") outcome = { ...outcome, status: "TIMED_OUT", error: "Task time limit reached" };
     else if (active.cancelled && outcome.status !== "CANCELLED" && outcome.status !== "COMPLETED") outcome = { ...outcome, status: "CANCELLED" };
@@ -37793,13 +37899,13 @@ ${last}` : "[REDACTED]"
 };
 
 // src/storage/task-store.ts
-var import_node_fs11 = require("node:fs");
-var import_node_path13 = __toESM(require("node:path"), 1);
+var import_node_fs12 = require("node:fs");
+var import_node_path14 = __toESM(require("node:path"), 1);
 var import_node_sqlite = require("node:sqlite");
 var TaskStore = class {
   db;
   constructor(dbFile) {
-    if (dbFile !== ":memory:") (0, import_node_fs11.mkdirSync)(import_node_path13.default.dirname(dbFile), { recursive: true });
+    if (dbFile !== ":memory:") (0, import_node_fs12.mkdirSync)(import_node_path14.default.dirname(dbFile), { recursive: true });
     this.db = new import_node_sqlite.DatabaseSync(dbFile);
     this.db.exec(`
       PRAGMA journal_mode = WAL;
@@ -37945,8 +38051,9 @@ function toRecord(row) {
 }
 
 // src/workspace/workspace-manager.ts
-var import_node_fs12 = require("node:fs");
-var import_node_path14 = __toESM(require("node:path"), 1);
+var import_node_fs13 = require("node:fs");
+var import_node_crypto2 = require("node:crypto");
+var import_node_path15 = __toESM(require("node:path"), 1);
 var DEFAULT_EXCLUDES = [
   "bin/",
   "obj/",
@@ -37964,57 +38071,67 @@ var DEFAULT_EXCLUDES = [
 var WorkspaceManager = class {
   async prepare(opts) {
     const baseline = await captureBaseline(opts.projectRoot);
-    const dir = import_node_path14.default.join(opts.workspaceRoot, opts.taskId);
-    (0, import_node_fs12.mkdirSync)(opts.workspaceRoot, { recursive: true });
-    if ((0, import_node_fs12.existsSync)(dir)) throw new Error(`Workspace ${dir} already exists`);
-    const excludesFile = import_node_path14.default.join(opts.workspaceRoot, `${opts.taskId}.exclude`);
-    (0, import_node_fs12.writeFileSync)(excludesFile, [...DEFAULT_EXCLUDES, ...opts.linkDirs.map((d) => `${d}/`)].join("\n") + "\n");
+    let dir = import_node_path15.default.join(opts.workspaceRoot, opts.taskId);
+    (0, import_node_fs13.mkdirSync)(opts.workspaceRoot, { recursive: true });
+    if ((0, import_node_fs13.existsSync)(dir)) throw new Error(`Workspace ${dir} already exists`);
+    const excludesFile = import_node_path15.default.join(opts.workspaceRoot, `${opts.taskId}.exclude`);
+    (0, import_node_fs13.writeFileSync)(excludesFile, [...DEFAULT_EXCLUDES, ...opts.linkDirs.map((d) => `${d}/`)].join("\n") + "\n");
     const gitConfig = { "core.excludesFile": excludesFile.replace(/\\/g, "/"), "core.autocrlf": "false" };
     let ws;
     if (baseline.isRepo && baseline.head && baseline.topLevel) {
-      const mainRoot = import_node_fs12.realpathSync.native(baseline.topLevel);
-      await git(["worktree", "add", "--detach", "--quiet", dir, baseline.head], { cwd: mainRoot });
+      const mainRoot = import_node_fs13.realpathSync.native(baseline.topLevel);
+      const pool = opts.reuse ? acquirePool(opts.workspaceRoot, mainRoot) : void 0;
+      if (pool) dir = pool;
       ws = {
         taskId: opts.taskId,
         mode: "git-worktree",
         root: dir,
         mainRoot,
-        projectSubdir: toPosix(import_node_path14.default.relative(import_node_fs12.realpathSync.native(mainRoot), import_node_fs12.realpathSync.native(opts.projectRoot))),
+        projectSubdir: toPosix(import_node_path15.default.relative(import_node_fs13.realpathSync.native(mainRoot), import_node_fs13.realpathSync.native(opts.projectRoot))),
         baselineTree: "",
         baseline,
         gitConfig,
-        links: []
+        links: [],
+        pooled: Boolean(pool)
       };
       try {
+        if (!pool || !await resetPool(dir, mainRoot, baseline.head, excludesFile)) {
+          if (pool && (0, import_node_fs13.existsSync)(dir)) {
+            removeLinksIn(dir, opts.linkDirs);
+            (0, import_node_fs13.rmSync)(dir, { recursive: true, force: true, maxRetries: 3 });
+            await git(["worktree", "prune"], { cwd: mainRoot }).catch(() => void 0);
+          }
+          await git(["worktree", "add", "--detach", "--quiet", dir, baseline.head], { cwd: mainRoot });
+        }
         for (const { change, path: rel } of baseline.trackedChanges) {
-          const to = import_node_path14.default.join(dir, rel);
+          const to = import_node_path15.default.join(dir, rel);
           if (change === "D") {
-            (0, import_node_fs12.rmSync)(to, { force: true });
+            (0, import_node_fs13.rmSync)(to, { force: true });
             continue;
           }
-          (0, import_node_fs12.mkdirSync)(import_node_path14.default.dirname(to), { recursive: true });
-          (0, import_node_fs12.cpSync)(import_node_path14.default.join(mainRoot, rel), to, { verbatimSymlinks: true, force: true });
+          (0, import_node_fs13.mkdirSync)(import_node_path15.default.dirname(to), { recursive: true });
+          (0, import_node_fs13.cpSync)(import_node_path15.default.join(mainRoot, rel), to, { verbatimSymlinks: true, force: true });
         }
         for (const rel of baseline.untracked) {
-          const from = import_node_path14.default.join(mainRoot, rel);
-          const to = import_node_path14.default.join(dir, rel);
-          (0, import_node_fs12.mkdirSync)(import_node_path14.default.dirname(to), { recursive: true });
-          (0, import_node_fs12.cpSync)(from, to, { verbatimSymlinks: true, force: true });
+          const from = import_node_path15.default.join(mainRoot, rel);
+          const to = import_node_path15.default.join(dir, rel);
+          (0, import_node_fs13.mkdirSync)(import_node_path15.default.dirname(to), { recursive: true });
+          (0, import_node_fs13.cpSync)(from, to, { verbatimSymlinks: true, force: true });
         }
       } catch (err) {
         await this.cleanup(ws);
         throw err;
       }
     } else {
-      const mainRoot = import_node_path14.default.resolve(opts.projectRoot);
+      const mainRoot = import_node_path15.default.resolve(opts.projectRoot);
       const exclude = new Set(opts.copyExclude);
-      (0, import_node_fs12.cpSync)(mainRoot, dir, {
+      (0, import_node_fs13.cpSync)(mainRoot, dir, {
         recursive: true,
         verbatimSymlinks: true,
-        filter: (src) => src === mainRoot || !exclude.has(import_node_path14.default.basename(src))
+        filter: (src) => src === mainRoot || !exclude.has(import_node_path15.default.basename(src))
       });
       await git(["init", "--quiet"], { cwd: dir });
-      ws = { taskId: opts.taskId, mode: "copy", root: dir, mainRoot, projectSubdir: "", baselineTree: "", baseline, gitConfig, links: [] };
+      ws = { taskId: opts.taskId, mode: "copy", root: dir, mainRoot, projectSubdir: "", baselineTree: "", baseline, gitConfig, links: [], pooled: false };
     }
     try {
       ws.links = linkDependencyDirs(ws.mainRoot, ws.root, opts.linkDirs);
@@ -38049,22 +38166,94 @@ var WorkspaceManager = class {
     }
   }
   readWorkspaceFile(ws, relPath) {
-    return (0, import_node_fs12.readFileSync)(import_node_path14.default.join(ws.root, relPath));
+    return (0, import_node_fs13.readFileSync)(import_node_path15.default.join(ws.root, relPath));
   }
   async cleanup(ws) {
     for (const link of ws.links) removeLink(link);
     ws.links = [];
+    const excludes = import_node_path15.default.join(import_node_path15.default.dirname(ws.root), `${ws.taskId}.exclude`);
+    if (ws.pooled) {
+      releasePool(ws.root);
+      (0, import_node_fs13.rmSync)(excludes, { force: true });
+      return;
+    }
     if (ws.mode === "git-worktree") {
       try {
         await git(["worktree", "remove", "--force", ws.root], { cwd: ws.mainRoot });
       } catch {
       }
     }
-    if ((0, import_node_fs12.existsSync)(ws.root)) (0, import_node_fs12.rmSync)(ws.root, { recursive: true, force: true, maxRetries: 3 });
+    if ((0, import_node_fs13.existsSync)(ws.root)) (0, import_node_fs13.rmSync)(ws.root, { recursive: true, force: true, maxRetries: 3 });
     if (ws.mode === "git-worktree") await git(["worktree", "prune"], { cwd: ws.mainRoot }).catch(() => void 0);
-    (0, import_node_fs12.rmSync)(import_node_path14.default.join(import_node_path14.default.dirname(ws.root), `${ws.taskId}.exclude`), { force: true });
+    (0, import_node_fs13.rmSync)(excludes, { force: true });
   }
 };
+function acquirePool(workspaceRoot, mainRoot) {
+  const key = (0, import_node_crypto2.createHash)("sha1").update(mainRoot.toLowerCase()).digest("hex").slice(0, 12);
+  const dir = import_node_path15.default.join(workspaceRoot, `pool-${key}`);
+  const lock = `${dir}.lock`;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      (0, import_node_fs13.writeFileSync)(lock, String(process.pid), { flag: "wx" });
+      return dir;
+    } catch {
+      const owner = Number(readFileSafe(lock));
+      if (owner === process.pid || owner && isAlive(owner)) return void 0;
+      (0, import_node_fs13.rmSync)(lock, { force: true });
+    }
+  }
+  return void 0;
+}
+function releasePool(dir) {
+  const lock = `${dir}.lock`;
+  if (Number(readFileSafe(lock)) === process.pid) (0, import_node_fs13.rmSync)(lock, { force: true });
+}
+async function resetPool(dir, mainRoot, head, excludesFile) {
+  if (!(0, import_node_fs13.existsSync)(import_node_path15.default.join(dir, ".git"))) return false;
+  try {
+    const commonDir = async (cwd) => import_node_path15.default.resolve((await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd })).trim()).toLowerCase();
+    if (await commonDir(dir) !== await commonDir(mainRoot)) return false;
+    const config2 = { "core.excludesFile": excludesFile.split(import_node_path15.default.sep).join("/") };
+    await git(["reset", "--hard", "--quiet"], { cwd: dir, config: config2 });
+    await git(["checkout", "--detach", "--force", "--quiet", head], { cwd: dir, config: config2 });
+    await git(["clean", "-fdq"], { cwd: dir, config: config2 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+function removeLinksIn(root, names) {
+  const wanted = new Set(names);
+  const walk = (dir, depth) => {
+    let entries;
+    try {
+      entries = (0, import_node_fs13.readdirSync)(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const full = import_node_path15.default.join(dir, e.name);
+      if (wanted.has(e.name)) removeLink(full);
+      else if (e.isDirectory() && depth < 3 && !e.name.startsWith(".")) walk(full, depth + 1);
+    }
+  };
+  walk(root, 0);
+}
+function readFileSafe(p) {
+  try {
+    return (0, import_node_fs13.readFileSync)(p, "utf8");
+  } catch {
+    return "";
+  }
+}
+function isAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err.code === "EPERM";
+  }
+}
 function linkDependencyDirs(mainRoot, wsRoot, names) {
   if (names.length === 0) return [];
   const wanted = new Set(names);
@@ -38073,18 +38262,22 @@ function linkDependencyDirs(mainRoot, wsRoot, names) {
   const walk = (rel, depth) => {
     let entries;
     try {
-      entries = (0, import_node_fs12.readdirSync)(import_node_path14.default.join(mainRoot, rel), { withFileTypes: true });
+      entries = (0, import_node_fs13.readdirSync)(import_node_path15.default.join(mainRoot, rel), { withFileTypes: true });
     } catch {
       return;
     }
     for (const e of entries) {
       if (!e.isDirectory()) continue;
-      const childRel = rel ? import_node_path14.default.join(rel, e.name) : e.name;
+      const childRel = rel ? import_node_path15.default.join(rel, e.name) : e.name;
       if (wanted.has(e.name)) {
-        const target = import_node_path14.default.join(mainRoot, childRel);
-        const link = import_node_path14.default.join(wsRoot, childRel);
-        if (!(0, import_node_fs12.existsSync)(import_node_path14.default.dirname(link)) || (0, import_node_fs12.existsSync)(link)) continue;
-        (0, import_node_fs12.symlinkSync)(target, link, process.platform === "win32" ? "junction" : "dir");
+        const target = import_node_path15.default.join(mainRoot, childRel);
+        const link = import_node_path15.default.join(wsRoot, childRel);
+        if (!(0, import_node_fs13.existsSync)(import_node_path15.default.dirname(link))) continue;
+        if ((0, import_node_fs13.existsSync)(link)) {
+          if (isSymlink(link)) links.push(link);
+          continue;
+        }
+        (0, import_node_fs13.symlinkSync)(target, link, process.platform === "win32" ? "junction" : "dir");
         links.push(link);
       } else if (depth < 3 && !skip.has(e.name) && !e.name.startsWith(".")) {
         walk(childRel, depth + 1);
@@ -38094,24 +38287,31 @@ function linkDependencyDirs(mainRoot, wsRoot, names) {
   walk("", 0);
   return links;
 }
+function isSymlink(p) {
+  try {
+    return (0, import_node_fs13.lstatSync)(p).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
 function removeLink(link) {
   try {
-    if ((0, import_node_fs12.lstatSync)(link).isSymbolicLink()) (0, import_node_fs12.unlinkSync)(link);
+    if ((0, import_node_fs13.lstatSync)(link).isSymbolicLink()) (0, import_node_fs13.unlinkSync)(link);
   } catch {
   }
 }
 function toPosix(p) {
-  return p.split(import_node_path14.default.sep).join("/");
+  return p.split(import_node_path15.default.sep).join("/");
 }
 
 // src/mcp/server.ts
-var VERSION = "0.3.0";
+var VERSION = "0.3.1";
 function eventsDir(dataDir) {
-  return import_node_path15.default.join(dataDir, "events");
+  return import_node_path16.default.join(dataDir, "events");
 }
 function createSousChef(env = process.env) {
   const environment = loadEnvironment(env);
-  const store = new TaskStore(import_node_path15.default.join(environment.dataDir, "souschef.db"));
+  const store = new TaskStore(import_node_path16.default.join(environment.dataDir, "souschef.db"));
   const registry2 = new ProcessRegistry();
   const redactor = new Redactor(env);
   const runner = new ProcessRunner(registry2, redactor);
@@ -38294,7 +38494,7 @@ ${text.slice(-maxChars)}` : text;
       annotations: { readOnlyHint: true }
     },
     async ({ projectRoot, ping }) => {
-      const root = import_node_path15.default.resolve(projectRoot ?? defaultRoot);
+      const root = import_node_path16.default.resolve(projectRoot ?? defaultRoot);
       const report = { version: VERSION, projectRoot: root, node: process.version };
       let config2;
       try {
@@ -38315,7 +38515,7 @@ ${text.slice(-maxChars)}` : text;
           taskId: `doctor_${Date.now()}`,
           cwd: root,
           prompt: "Reply with the single word PONG. Do not use any tools.",
-          scratchDir: import_node_path15.default.join(loadEnvironment(env).workspaceRoot, "doctor"),
+          scratchDir: import_node_path16.default.join(loadEnvironment(env).workspaceRoot, "doctor"),
           timeoutMs: 12e4,
           maxOutputBytes: 2e4
         });
@@ -38334,7 +38534,7 @@ async function main() {
   const { server } = createServer();
   await server.connect(new StdioServerTransport());
 }
-var entry = process.argv[1] ? import_node_path15.default.basename(process.argv[1]) : "";
+var entry = process.argv[1] ? import_node_path16.default.basename(process.argv[1]) : "";
 if (/^(server\.(c?js|ts)|souschef)$/.test(entry)) {
   main().catch((err) => {
     process.stderr.write(`souschef: ${err.stack ?? err}

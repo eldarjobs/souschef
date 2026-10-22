@@ -16,7 +16,7 @@ import { TaskStore } from '../storage/task-store.js';
 import { PLANNED_TASK_TYPES, TASK_TYPES, type TaskType } from '../types.js';
 import { WorkspaceManager } from '../workspace/workspace-manager.js';
 
-const VERSION = '0.3.0';
+const VERSION = '0.3.1';
 
 /** Where each task's live activity file lives; `souschef watch` reads the same folder. */
 export function eventsDir(dataDir: string): string {

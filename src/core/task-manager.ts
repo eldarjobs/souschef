@@ -61,9 +61,11 @@ export class TaskManager {
         error: 'SousChef restarted while this task was active; delegate it again.',
         pid: null
       });
-      if (t.workspacePath && existsSync(t.workspacePath) && path.dirname(t.workspacePath) === this.opts.workspaceRoot) {
+      // Pooled worktrees (pool-*) are kept: the next task resets them and reuses their build output.
+      const ws = t.workspacePath;
+      if (ws && path.dirname(ws) === this.opts.workspaceRoot && path.basename(ws).startsWith('task_') && existsSync(ws)) {
         // Links into node_modules/.venv are junctions/symlinks; rmSync removes the link, not the target.
-        rmSync(t.workspacePath, { recursive: true, force: true });
+        rmSync(ws, { recursive: true, force: true });
       }
     }
     return stale.length;
