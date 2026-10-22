@@ -64,9 +64,9 @@ Ask Claude to test what it just built, or run `/souschef:taste [scope]`. The bun
 
 | Tool | What it does |
 |---|---|
-| `delegate_task` | Starts a task (`taskType: "tests"`) and returns a `taskId` at once. `continueFrom` resumes an earlier task's agent conversation with new feedback. `idempotencyKey` makes retries safe. |
-| `get_task_status` | Status, phase and a one-line progress note. |
-| `wait_for_task` | Blocks until the task finishes or a timeout passes. |
+| `delegate_task` | Starts a task (`taskType: "tests"`) and returns a `taskId` at once, plus `watch`: the command that follows it live. `continueFrom` resumes an earlier task's agent conversation with new feedback. `idempotencyKey` makes retries safe. |
+| `get_task_status` | Status, phase, a one-line progress note and `recent`: the latest steps. |
+| `wait_for_task` | Blocks until the task finishes or a timeout passes; answers like `get_task_status`. |
 | `get_task_result` | The compact report. Logs (`testOutput`, `buildOutput`, `agentResponse`) only via `include`. |
 | `get_task_diff` | The patch, size-limited; large ones are listed per file and paged. |
 | `cancel_task` | Stops the task and only the processes souschef started for it. |
@@ -75,6 +75,33 @@ Ask Claude to test what it just built, or run `/souschef:taste [scope]`. The bun
 A task moves through `CREATED → QUEUED → RUNNING ⇄ VALIDATING` and ends in `COMPLETED`,
 `NEEDS_REVIEW`, `FAILED`, `CANCELLED` or `TIMED_OUT`. The agent exiting cleanly is never enough
 on its own: build, tests and the scope check decide.
+
+### Watch it live
+
+souschef runs agy with `--output-format stream-json`, so every step lands as it happens in
+`~/.souschef/events/<taskId>.ndjson`. Follow a task from any terminal:
+
+```
+node <plugin>/dist/server.cjs watch <taskId>     # or: watch --latest
+```
+
+An excerpt from a real run of `npm run smoke` (the planted `isEven` bug):
+
+```
+11:39:38  [agent_writing] antigravity is writing tests
+11:39:52  read   src\math.js
+11:40:01  run    git status
+11:40:02         -> exit 0 · modified:   src/math.js (0.3s)
+11:40:57  write  test\math.test.js
+11:41:00  run    npm test
+11:41:30  [checking_scope] Checking which files the agent changed
+11:41:30  [testing] Running npm test --silent
+11:41:32  == NEEDS_REVIEW: Tests point to a bug in the production code (3 passed, 2 failed); nothing applied.
+```
+
+`delegate_task` returns this exact command as `watch`, and the bundled skill opens it in a terminal
+tab beside the chat when the client can. `wait_for_task` carries the same lines in `recent`, so the
+chat follows along too. Watching is read-only: Ctrl+C stops the view, never the task.
 
 Report example:
 

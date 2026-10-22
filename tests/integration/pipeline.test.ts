@@ -4,7 +4,8 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFil
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { createSousChef } from '../../src/mcp/server.js';
+import { watchTask } from '../../src/cli/watch.js';
+import { createSousChef, eventsDir } from '../../src/mcp/server.js';
 import { TaskStore } from '../../src/storage/task-store.js';
 
 const FAKE_AGY = path.resolve('tests/fixtures/fake-agy.mjs');
@@ -71,6 +72,26 @@ test('happy path: tests written, verified, applied; uncommitted work preserved',
   assert.deepEqual(readdirSync(environment.workspaceRoot).filter((n) => n.startsWith(taskId)), [], 'workspace cleaned up');
   const worktrees = execFileSync('git', ['worktree', 'list'], { cwd: repo, encoding: 'utf8' }).trim().split('\n');
   assert.equal(worktrees.length, 1, 'temporary worktree removed');
+});
+
+test('live activity: agent steps are recorded and `watch` follows the task to its end', async () => {
+  const { manager, taskId, environment } = await runToEnd('pass');
+  const recent = manager.activity(taskId, 20).map((l) => l.slice(10));
+  assert.ok(recent.includes('write  test/math.test.js'.replace('/', path.sep)), recent.join('\n'));
+  assert.ok(recent.includes('agent: Tests written and run.'), recent.join('\n'));
+  assert.ok(recent.some((l) => l.startsWith('[agent_writing]')));
+  assert.match(recent.at(-1)!, /^== COMPLETED: /);
+
+  const printed: string[] = [];
+  const code = await watchTask(taskId, eventsDir(environment.dataDir), { pollMs: 10, write: (t) => void printed.push(t) });
+  assert.equal(code, 0);
+  const out = printed.join('');
+  assert.match(out, /\[queued\] Waiting for a free slot/);
+  assert.match(out, /-> exit 0 · ℹ pass 2/);
+  assert.match(out, /== COMPLETED: /, 'watch stops at the done entry');
+
+  const missing = await watchTask('task_missing', eventsDir(environment.dataDir), { pollMs: 10, waitForFileMs: 30, write: () => undefined });
+  assert.equal(missing, 1);
 });
 
 test('business code change is detected and nothing is applied', async () => {

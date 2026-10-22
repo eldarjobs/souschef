@@ -1,6 +1,6 @@
 {
   "name": "souschef",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server and Claude Code plugin that delegates test writing to a second coding agent (Antigravity CLI first) in an isolated workspace, verifies the result and returns a compact report.",
   "license": "MIT",
   "type": "module",

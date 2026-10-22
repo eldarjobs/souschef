@@ -3,12 +3,14 @@ import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { parseAgyJson } from '../../src/adapters/agy/agy.adapter.js';
+import type { AgentEvent } from '../../src/adapters/agent-adapter.js';
+import { AgyStreamParser, commandSummary, parseAgyJson, toolAction } from '../../src/adapters/agy/agy.adapter.js';
 import { configSchema, loadConfig, splitCommandLine } from '../../src/config/config-loader.js';
 import { canTransition, isTerminal } from '../../src/core/state-machine.js';
 import { discoverTestPlan } from '../../src/discovery/project-discovery.js';
 import { CommandPolicy } from '../../src/security/command-policy.js';
 import { parseNameStatusZ } from '../../src/security/git-baseline.js';
+import { ActivityLog, formatEntry, latestTaskId } from '../../src/reporting/activity-log.js';
 import { normalizeRelative, PathPolicy } from '../../src/security/path-policy.js';
 import { Redactor } from '../../src/security/redact.js';
 import { TaskStore } from '../../src/storage/task-store.js';
@@ -103,6 +105,67 @@ test('agy JSON result parsing tolerates surrounding log lines', () => {
   const out = 'some log\n{"conversation_id":"c1","status":"SUCCESS","response":"{}","structured_output":{"a":1}}\n';
   assert.equal(parseAgyJson(out)?.conversation_id, 'c1');
   assert.equal(parseAgyJson('no json here'), undefined);
+  const stream = '{"event":"init","conversation_id":"c2","init":{}}\n{"event":"result","result":{"conversation_id":"c2","status":"SUCCESS"}}\n';
+  assert.equal(parseAgyJson(stream)?.status, 'SUCCESS', 'the result event of a stream is unwrapped');
+});
+
+test('agy stream: tool steps, workspace-relative paths, command summaries and messages', () => {
+  const root = path.join(tmpdir(), 'ws', 'task_1');
+  const events: AgentEvent[] = [];
+  const parser = new AgyStreamParser(root, (e) => events.push(e));
+  const step = (update: object) => parser.push(JSON.stringify({ event: 'step_update', step_update: update }));
+  const file = { name: 'write_to_file', parameters: { Path: path.join(root, 'tests', 'a.test.ts') } };
+  step({ step_index: 1, state: 'ACTIVE', step_type: 'tool', tool_name: 'write_file', tool_info: file });
+  step({ step_index: 1, state: 'DONE', step_type: 'tool', tool_name: 'write_file', duration_seconds: 0.1, tool_info: file });
+  const output = `Command exited with code 1.\n\nCommand output:\nsome noise\nFailed!  - Failed: 2, Passed: 5 [${root}${path.sep}App.sln]\n`;
+  step({ step_index: 2, state: 'DONE', step_type: 'tool', tool_name: 'run_command', tool_info: { parameters: { CommandLine: `dotnet test ${root}${path.sep}App.sln` }, output } });
+  step({ step_index: 3, state: 'ACTIVE', step_type: 'agent_response', text_delta: 'Two tests ' });
+  step({ step_index: 3, state: 'DONE', step_type: 'agent_response', text_delta: 'fail.' });
+  step({ step_index: 4, state: 'DONE', step_type: 'agent_response', text_delta: '{"suspectedProductBug":false}' });
+  parser.push('not json');
+  parser.push(JSON.stringify({ event: 'result', result: { conversation_id: 'c9', status: 'SUCCESS' } }));
+
+  assert.deepEqual(events[0], { kind: 'tool', state: 'ACTIVE', tool: 'write_file', action: 'write', detail: 'tests/a.test.ts'.replace('/', path.sep) });
+  assert.equal(events[1]!.state, 'DONE');
+  assert.equal(events[2]!.action, 'run');
+  assert.equal(events[2]!.detail, 'dotnet test App.sln', 'the workspace prefix is stripped from commands too');
+  assert.equal(events[2]!.output, 'exit 1 · Failed!  - Failed: 2, Passed: 5 [App.sln]', 'and from command output');
+  assert.deepEqual(events[3], { kind: 'message', text: 'Two tests fail.' });
+  assert.equal(events.length, 4);
+  assert.equal(parser.result?.conversation_id, 'c9');
+  assert.equal(toolAction('replace_file_content'), 'write');
+  assert.equal(toolAction('grep_search'), 'search');
+  assert.equal(toolAction('view_file'), 'read');
+  assert.equal(commandSummary(undefined), undefined);
+  assert.equal(
+    commandSummary('Command exited with code 1.\n\nCommand output:\nℹ tests 7\nℹ fail 3\nℹ todo 0\n  error: {\n    at async Test.run (node:internal/test_runner/test:1:1)\n  }\n'),
+    'exit 1 · ℹ fail 3',
+    'a count line beats errors, braces and stack frames'
+  );
+  assert.equal(commandSummary('Command exited with code 0.\n\nCommand output:\nhello\n'), 'exit 0 · hello');
+});
+
+test('activity log: redacted, filtered to headlines, formatted', () => {
+  const dir = tmp('activity');
+  const log = new ActivityLog(dir, (t) => t.replace('s3cret', '***'));
+  log.append('t1', { kind: 'phase', phase: 'agent_writing', text: 'antigravity is writing tests' });
+  log.append('t1', { kind: 'tool', state: 'ACTIVE', action: 'write', detail: 'tests/a.test.ts' });
+  log.append('t1', { kind: 'tool', state: 'DONE', action: 'write', detail: 'tests/a.test.ts' });
+  log.append('t1', { kind: 'tool', state: 'ACTIVE', action: 'run' });
+  log.append('t1', { kind: 'tool', state: 'DONE', action: 'run', detail: 'npm test', output: 'exit 0 · token s3cret', seconds: 2 });
+  log.append('t1', { kind: 'done', status: 'COMPLETED', text: 'Created 1 tests' });
+
+  const lines = log.recent('t1', 10).map((l) => l.slice(10));
+  assert.deepEqual(lines, [
+    '[agent_writing] antigravity is writing tests',
+    'write  tests/a.test.ts',
+    '       -> exit 0 · token *** (2.0s)',
+    '== COMPLETED: Created 1 tests'
+  ]);
+  assert.equal(log.recent('t1', 2).length, 2, 'only the tail');
+  assert.deepEqual(log.recent('missing', 5), []);
+  assert.equal(latestTaskId(dir), 't1');
+  assert.ok(formatEntry({ at: new Date().toISOString(), kind: 'message', text: 'x'.repeat(300) }).endsWith('...'));
 });
 
 test('git name-status -z parsing splits renames into delete + add', () => {

@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { addUsage, type AgentAdapter, type AgentRunResult } from '../adapters/agent-adapter.js';
+import { addUsage, type AgentAdapter, type AgentEvent, type AgentRunResult } from '../adapters/agent-adapter.js';
 import { loadConfig, type SousChefConfig } from '../config/config-loader.js';
 import { discoverTestPlan } from '../discovery/project-discovery.js';
 import { buildSummaryLine } from '../reporting/summary-builder.js';
@@ -30,6 +30,8 @@ export interface PipelineContext {
   resumeSessionId?: string;
   setStatus(status: TaskStatus): void;
   setPhase(phase: TaskPhase, progress: string): void;
+  /** A step the agent just took, for the live activity view. */
+  recordEvent?(event: AgentEvent): void;
   setPid(pid: number | null): void;
   setWorkspace(p: string | null): void;
   saveFiles(files: StoredFileDiff[]): void;
@@ -173,7 +175,8 @@ export async function runTestsPipeline(ctx: PipelineContext, deps: PipelineDeps)
         scratchDir: ctx.scratchDir,
         timeoutMs: agentTimeoutMs,
         maxOutputBytes: config.maxOutputBytes,
-        onSpawn: (pid) => ctx.setPid(pid)
+        onSpawn: (pid) => ctx.setPid(pid),
+        onEvent: (event) => ctx.recordEvent?.(event)
       });
       ctx.setPid(null);
       state.usage = addUsage(state.usage, res.usage);

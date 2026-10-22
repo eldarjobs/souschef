@@ -34,10 +34,17 @@ Call `delegate_task` with:
 Uncommitted changes are included automatically; you do not need to commit first. Tell the user in
 one line that the task started, with its taskId.
 
+**Live view.** The answer carries `watch`, a command that prints every step the tester takes (files
+it writes, commands it runs, what it says) until the task ends. If you can open a terminal tab beside
+the chat (for example a `run_in_terminal` tool), run `watch` there right away, titled `souschef`, and
+tell the user it is open. Otherwise give them the command to paste into a terminal. Watching never
+affects the task, and Ctrl+C only stops the view.
+
 ## 3. Wait
 
 Call `wait_for_task` with the taskId until `finished` is true. After each call, give the user one
-short line with `phase` and `progress`. Do not edit files under test meanwhile.
+short line with `phase` and the newest line of `recent` (the latest steps). Do not edit files under
+test meanwhile.
 
 ## 4. Act on the result
 

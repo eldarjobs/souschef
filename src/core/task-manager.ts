@@ -2,7 +2,9 @@ import { createHash, randomBytes } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { existsSync, realpathSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
+import type { AgentEvent } from '../adapters/agent-adapter.js';
 import { loadConfig } from '../config/config-loader.js';
+import type { ActivityLog } from '../reporting/activity-log.js';
 import { captureBaseline } from '../security/git-baseline.js';
 import type { TaskStore } from '../storage/task-store.js';
 import { TASK_TYPES, type DelegateInput, type TaskPhase, type TaskRecord, type TaskStatus } from '../types.js';
@@ -18,6 +20,8 @@ export interface TaskManagerOptions {
   maxConcurrentTasks: number;
   /** Fallback task timeout when the project config cannot be read yet. */
   defaultTaskTimeoutMinutes?: number;
+  /** Live per-task activity (phases and agent steps) for wait_for_task and `souschef watch`. */
+  activity?: ActivityLog;
 }
 
 export interface DelegateResponse {
@@ -100,6 +104,8 @@ export class TaskManager {
     };
     this.opts.store.insert(task);
     this.transition(task.id, 'QUEUED', { progress: 'Waiting for a free slot' });
+    // Written right away so a watcher started with the taskId has a file to follow.
+    this.opts.activity?.append(task.id, { kind: 'phase', phase: 'queued', text: 'Waiting for a free slot' });
     this.queue.push(task.id);
     setImmediate(() => this.pump());
     return { taskId: task.id, status: 'QUEUED', deduplicated: false };
@@ -107,6 +113,11 @@ export class TaskManager {
 
   get(taskId: string): TaskRecord | undefined {
     return this.opts.store.get(taskId);
+  }
+
+  /** The latest steps of a task, one formatted line each, oldest first. */
+  activity(taskId: string, limit: number): string[] {
+    return this.opts.activity?.recent(taskId, limit) ?? [];
   }
 
   /** Resolves when the task is terminal or the timeout passes. */
@@ -192,7 +203,11 @@ export class TaskManager {
             const cur = this.get(taskId)!.status;
             if (cur !== s) this.transition(taskId, s);
           },
-          setPhase: (phase: TaskPhase, progress: string) => this.update(taskId, { phase, progress }),
+          setPhase: (phase: TaskPhase, progress: string) => {
+            this.opts.activity?.append(taskId, { kind: 'phase', phase, text: progress });
+            this.update(taskId, { phase, progress });
+          },
+          recordEvent: (event) => this.recordEvent(taskId, event),
           setPid: (pid) => this.opts.store.update(taskId, { pid }),
           setWorkspace: (p) => this.opts.store.update(taskId, { workspacePath: p }),
           saveFiles: (files) => this.opts.store.replaceFiles(taskId, files),
@@ -218,8 +233,21 @@ export class TaskManager {
     this.finish(taskId, outcome);
   }
 
+  /** Logs an agent step, and makes the visible ones the task's progress line. */
+  private recordEvent(taskId: string, event: AgentEvent): void {
+    this.opts.activity?.append(taskId, event);
+    const progress =
+      event.kind === 'message'
+        ? `agent: ${event.text!.replace(/\s+/g, ' ').slice(0, 160)}`
+        : event.state === 'ACTIVE' && event.detail
+          ? `agent: ${event.action ?? event.tool} ${event.detail}`
+          : undefined;
+    if (progress) this.update(taskId, { progress });
+  }
+
   private finish(taskId: string, outcome: Pick<PipelineOutcome, 'status' | 'error'> & { result?: PipelineOutcome['result'] }): void {
     const result = outcome.result ? { ...outcome.result, status: outcome.status } : undefined;
+    this.opts.activity?.append(taskId, { kind: 'done', status: outcome.status, text: result?.summary ?? outcome.error ?? outcome.status });
     this.transition(taskId, outcome.status, {
       phase: 'done',
       progress: result?.summary ?? outcome.error ?? outcome.status,

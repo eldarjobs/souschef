@@ -1,5 +1,6 @@
-// Stand-in for `agy --print ... --output-format json`, driven by FAKE_AGY_MODE.
-// Writes files into its cwd (the SousChef workspace) and prints agy's JSON result shape.
+// Stand-in for `agy --print ... --output-format stream-json|json`, driven by FAKE_AGY_MODE.
+// Writes files into its cwd (the SousChef workspace) and prints agy's output shapes:
+// step_update events per tool call and a final result event, or one JSON object.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -8,10 +9,22 @@ const prompt = args[args.indexOf('--print') + 1] ?? '';
 const resumed = args.includes('--conversation');
 const isRepair = prompt.includes('Repair attempt');
 const mode = process.env.FAKE_AGY_MODE ?? 'pass';
+const streaming = args[args.indexOf('--output-format') + 1] === 'stream-json';
+
+// Like agy, a step reports ACTIVE and then DONE under the same step_index.
+let steps = 0;
+const emit = (event) => streaming && process.stdout.write(JSON.stringify(event) + '\n');
+const stepUpdate = (index, update) =>
+  emit({ event: 'step_update', step_update: { conversation_id: 'fake-conversation-1', step_index: index, ...update } });
+emit({ event: 'init', conversation_id: 'fake-conversation-1', init: { cwd: process.cwd(), tools: ['write_to_file', 'run_command'] } });
 
 const write = (rel, text) => {
+  const index = steps++;
+  const tool_info = { name: 'write_to_file', parameters: { Path: path.resolve(rel) } };
+  stepUpdate(index, { state: 'ACTIVE', step_type: 'tool', tool_name: 'write_file', tool_info });
   mkdirSync(path.dirname(rel), { recursive: true });
   writeFileSync(rel, text);
+  stepUpdate(index, { state: 'DONE', step_type: 'tool', tool_name: 'write_file', duration_seconds: 0.01, tool_info });
 };
 
 const passingTest = `import { test } from 'node:test';
@@ -62,14 +75,22 @@ switch (mode) {
     break;
 }
 
-process.stdout.write(
-  JSON.stringify({
-    conversation_id: 'fake-conversation-1',
-    status: 'SUCCESS',
-    response: JSON.stringify(report),
-    structured_output: report,
-    num_turns: 1,
-    duration_seconds: 0.1,
-    usage: { input_tokens: 100, output_tokens: 20, thinking_tokens: 5, cache_read_tokens: 0, total_tokens: 125 }
-  }) + '\n'
-);
+const commandOutput = 'Command exited with code 0.\n\nCommand output:\nℹ tests 2\nℹ pass 2';
+const run = { name: 'run_command', parameters: { CommandLine: 'node --test' } };
+const runStep = steps++;
+stepUpdate(runStep, { state: 'ACTIVE', step_type: 'tool', tool_name: 'run_command', tool_info: run });
+stepUpdate(runStep, { state: 'DONE', step_type: 'tool', tool_name: 'run_command', duration_seconds: 0.4, tool_info: { ...run, output: commandOutput } });
+const messageStep = steps++;
+stepUpdate(messageStep, { state: 'ACTIVE', step_type: 'agent_response', text_delta: 'Tests written ' });
+stepUpdate(messageStep, { state: 'DONE', step_type: 'agent_response', text_delta: 'and run.' });
+
+const result = {
+  conversation_id: 'fake-conversation-1',
+  status: 'SUCCESS',
+  response: JSON.stringify(report),
+  structured_output: report,
+  num_turns: 1,
+  duration_seconds: 0.1,
+  usage: { input_tokens: 100, output_tokens: 20, thinking_tokens: 5, cache_read_tokens: 0, total_tokens: 125 }
+};
+process.stdout.write(JSON.stringify(streaming ? { event: 'result', result } : result) + '\n');

@@ -3,10 +3,12 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import { z } from 'zod';
 import { AgyAdapter } from '../adapters/agy/agy.adapter.js';
+import { watchTask } from '../cli/watch.js';
 import { loadConfig, loadEnvironment } from '../config/config-loader.js';
 import { ProcessRegistry, ProcessRunner } from '../core/process-runner.js';
 import { TaskManager } from '../core/task-manager.js';
 import { discoverTestPlan } from '../discovery/project-discovery.js';
+import { ActivityLog } from '../reporting/activity-log.js';
 import { statusView } from '../reporting/summary-builder.js';
 import { captureBaseline } from '../security/git-baseline.js';
 import { Redactor } from '../security/redact.js';
@@ -14,24 +16,44 @@ import { TaskStore } from '../storage/task-store.js';
 import { PLANNED_TASK_TYPES, TASK_TYPES, type TaskType } from '../types.js';
 import { WorkspaceManager } from '../workspace/workspace-manager.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
+
+/** Where each task's live activity file lives; `souschef watch` reads the same folder. */
+export function eventsDir(dataDir: string): string {
+  return path.join(dataDir, 'events');
+}
 
 export function createSousChef(env: NodeJS.ProcessEnv = process.env) {
   const environment = loadEnvironment(env);
   const store = new TaskStore(path.join(environment.dataDir, 'souschef.db'));
   const registry = new ProcessRegistry();
-  const runner = new ProcessRunner(registry, new Redactor(env));
+  const redactor = new Redactor(env);
+  const runner = new ProcessRunner(registry, redactor);
   const workspaces = new WorkspaceManager();
+  const activity = new ActivityLog(eventsDir(environment.dataDir), (text) => redactor.redact(text));
   const manager = new TaskManager({
     store,
     registry,
+    activity,
     workspaceRoot: environment.workspaceRoot,
     maxConcurrentTasks: environment.maxConcurrentTasks,
     pipeline: { runner, workspaces, createAdapter: (config) => new AgyAdapter(runner, config.agent, env) }
   });
   manager.recover();
-  return { environment, store, registry, runner, manager };
+  return { environment, store, registry, runner, manager, activity };
 }
+
+/**
+ * The command that shows a task live in a terminal. Clients that can open a terminal
+ * beside the chat run it there; others hand it to the user.
+ */
+function watchCommand(taskId: string): string | undefined {
+  const script = process.argv[1];
+  return script && /server\.c?js$/.test(script) ? `node "${script}" watch ${taskId}` : undefined;
+}
+
+/** How many of the latest steps status answers carry. */
+const RECENT_STEPS = 8;
 
 const json = (value: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(value) }] });
 const fail = (message: string) => ({ content: [{ type: 'text' as const, text: JSON.stringify({ error: message }) }], isError: true });
@@ -48,7 +70,8 @@ export function createServer(env: NodeJS.ProcessEnv = process.env): { server: Mc
       description:
         'Starts a task (currently taskType "tests") in an isolated workspace and returns a taskId immediately. ' +
         'SousChef detects the test command, lets the agent write tests, runs build/tests, checks that only test files changed, ' +
-        'and applies verified test files to the checkout. Follow with wait_for_task, then get_task_result.',
+        'and applies verified test files to the checkout. Follow with wait_for_task, then get_task_result. ' +
+        'The answer carries `watch`: a command that follows the agent live in a terminal; open it beside the chat if you can.',
       inputSchema: z.object({
         taskType: z.enum([...TASK_TYPES, ...PLANNED_TASK_TYPES]).describe('Only "tests" runs today.'),
         objective: z.string().min(1).max(4000).describe('What to test and why, with concrete expected behaviour.'),
@@ -77,7 +100,8 @@ export function createServer(env: NodeJS.ProcessEnv = process.env): { server: Mc
           idempotencyKey: args.idempotencyKey,
           continueFrom: args.continueFrom
         });
-        return json(res);
+        const watch = watchCommand(res.taskId);
+        return json(watch ? { ...res, watch } : res);
       } catch (err) {
         return fail((err as Error).message);
       }
@@ -88,13 +112,13 @@ export function createServer(env: NodeJS.ProcessEnv = process.env): { server: Mc
     'get_task_status',
     {
       title: 'Task status',
-      description: 'Current status, phase and one-line progress of a task.',
+      description: 'Current status, phase and one-line progress of a task, plus its latest steps in `recent`.',
       inputSchema: z.object({ taskId: z.string() }),
       annotations: { readOnlyHint: true }
     },
     async ({ taskId }) => {
       const task = manager.get(taskId);
-      return task ? json(statusView(task)) : fail(`Unknown task ${taskId}`);
+      return task ? json({ ...statusView(task), recent: manager.activity(taskId, RECENT_STEPS) }) : fail(`Unknown task ${taskId}`);
     }
   );
 
@@ -102,14 +126,20 @@ export function createServer(env: NodeJS.ProcessEnv = process.env): { server: Mc
     'wait_for_task',
     {
       title: 'Wait for a task',
-      description: 'Blocks until the task finishes or timeoutSeconds passes, then returns its status. Call again while it is still running.',
+      description:
+        'Blocks until the task finishes or timeoutSeconds passes, then returns its status and `recent`: the latest steps ' +
+        '(files the agent wrote, commands it ran, what it said). Call again while it is still running.',
       inputSchema: z.object({ taskId: z.string(), timeoutSeconds: z.number().int().min(1).max(600).default(50) }),
       annotations: { readOnlyHint: true }
     },
     async ({ taskId, timeoutSeconds }) => {
       const task = await manager.waitFor(taskId, timeoutSeconds * 1000);
       if (!task) return fail(`Unknown task ${taskId}`);
-      return json({ ...statusView(task), finished: ['COMPLETED', 'NEEDS_REVIEW', 'FAILED', 'CANCELLED', 'TIMED_OUT'].includes(task.status) });
+      return json({
+        ...statusView(task),
+        recent: manager.activity(taskId, RECENT_STEPS),
+        finished: ['COMPLETED', 'NEEDS_REVIEW', 'FAILED', 'CANCELLED', 'TIMED_OUT'].includes(task.status)
+      });
     }
   );
 
@@ -240,6 +270,11 @@ export function createServer(env: NodeJS.ProcessEnv = process.env): { server: Mc
 }
 
 async function main() {
+  // `souschef watch [taskId]` follows a task from a terminal instead of serving MCP.
+  if (process.argv[2] === 'watch') {
+    process.exitCode = await watchTask(process.argv[3], eventsDir(loadEnvironment(process.env).dataDir));
+    return;
+  }
   const { server } = createServer();
   await server.connect(new StdioServerTransport());
 }

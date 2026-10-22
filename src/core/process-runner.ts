@@ -12,6 +12,8 @@ export interface RunOptions {
   /** Owner task: lets cancel_task stop exactly the processes this task started. */
   taskId?: string;
   onSpawn?: (pid: number) => void;
+  /** Each complete stdout line as it arrives (unredacted); the buffered output is unaffected. */
+  onStdoutLine?: (line: string) => void;
 }
 
 /**
@@ -154,7 +156,17 @@ export class ProcessRunner {
         killTree(child);
       }, opts.timeoutMs);
 
-      child.stdout?.setEncoding('utf8').on('data', (c: string) => buffer.push(c));
+      let partial = '';
+      const emitLines = (chunk: string, flush = false) => {
+        if (!opts.onStdoutLine) return;
+        const lines = (partial + chunk).split(/\r?\n/);
+        partial = flush ? '' : lines.pop()!;
+        for (const line of lines) if (line) opts.onStdoutLine(line);
+      };
+      child.stdout?.setEncoding('utf8').on('data', (c: string) => {
+        buffer.push(c);
+        emitLines(c);
+      });
       child.stderr?.setEncoding('utf8').on('data', (c: string) => buffer.push(c));
       if (opts.stdin !== undefined) child.stdin?.end(opts.stdin);
       else child.stdin?.end();
@@ -163,6 +175,7 @@ export class ProcessRunner {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        emitLines('', true);
         if (extra) buffer.push(extra);
         resolve({
           exitCode,

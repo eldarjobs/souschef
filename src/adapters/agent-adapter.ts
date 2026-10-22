@@ -14,6 +14,25 @@ export interface AgentRunRequest {
   timeoutMs: number;
   maxOutputBytes: number;
   onSpawn?: (pid: number) => void;
+  /** Each step the agent takes, as it happens. Adapters that cannot stream never call it. */
+  onEvent?: (event: AgentEvent) => void;
+}
+
+/** One step of a running agent: a tool call starting or finishing, or a message it wrote. */
+export interface AgentEvent {
+  kind: 'tool' | 'message';
+  /** For tools: ACTIVE when the call starts, DONE when it returns. */
+  state?: 'ACTIVE' | 'DONE';
+  /** Short verb for the tool: write, read, run, search, or the raw tool name. */
+  action?: string;
+  tool?: string;
+  /** The file, command or query the step worked on; paths relative to the workspace. */
+  detail?: string;
+  seconds?: number;
+  /** For finished commands: the first useful line of their output. */
+  output?: string;
+  /** For messages: what the agent said. */
+  text?: string;
 }
 
 export interface AgentRunResult {
