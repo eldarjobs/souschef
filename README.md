@@ -26,9 +26,12 @@ get_task_result ◀── {"status":"COMPLETED","tests":{"passed":12,"failed":0}
 ## Install (Claude Code)
 
 ```
-/plugin marketplace add eldarjobs/souschef
+/plugin marketplace add https://github.com/eldarjobs/souschef.git
 /plugin install souschef@souschef
 ```
+
+Use the full HTTPS URL. The `eldarjobs/souschef` shorthand clones over SSH, which fails with
+"Host key verification failed" on machines without an SSH key set up for GitHub.
 
 Local checkout:
 
