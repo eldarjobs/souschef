@@ -1,16 +1,25 @@
 {
   "name": "souschef",
-  "version": "0.1.0",
-  "description": "Hand test writing to a second coding agent (Antigravity CLI) and follow the run live: start, wait, read the result, send feedback.",
+  "version": "0.2.0",
+  "description": "Hand test writing to a second coding agent (Antigravity CLI) in an isolated workspace; souschef verifies the tests and returns a compact report.",
   "author": {
     "name": "eldarjobs"
   },
   "license": "MIT",
-  "keywords": ["mcp", "testing", "antigravity", "agy", "delegation", "tester"],
+  "keywords": [
+    "mcp",
+    "testing",
+    "antigravity",
+    "agy",
+    "delegation",
+    "tester"
+  ],
   "mcpServers": {
     "souschef": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/server.cjs"]
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/dist/server.cjs"
+      ]
     }
   }
 }

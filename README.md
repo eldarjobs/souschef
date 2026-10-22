@@ -3,27 +3,25 @@
 **Your agent cooks. Souschef tastes.**
 
 In a kitchen, nothing leaves the pass until the sous-chef has tasted it. souschef brings that to
-coding agents: when your agent finishes a change, a *second* agent writes the tests, runs them and
-tells you what is wrong, and that includes bugs in your code, not just in its tests.
+coding agents: when your agent finishes a change, a *second* agent writes the tests, souschef
+runs them, checks that only test files changed, and hands back a short report. It also catches
+bugs in your code, not just in the agent's tests.
 
 souschef is an MCP server, packaged as a Claude Code plugin. It hands test writing to a headless
-coding agent (today the [Antigravity CLI](https://antigravity.google), `agy`), follows the run
-live, and brings back a structured report: tests added, failures, and suspected bugs in the code
-under test. You fix them and send feedback into the same agent conversation until the suite is green.
+coding agent (today the [Antigravity CLI](https://antigravity.google), `agy`) and keeps the noise
+(test code, terminal logs, the agent's conversation) out of your main agent's context unless it
+asks for it.
 
 ```
-Claude Code                        souschef                            agy (headless)
-start_run(feature, requirements) ─▶ writes brief.md, starts agy ───────▶ writes tests, runs them
-wait_run(cursor) ◀─ events ──────── watches git status every 3 s
-                                    "file: test/math.test.js"
-wait_run(cursor) ◀─ state=failed ── reads result.json  ◀─────────────── result.json
-  suspected_source_bugs: isEven
-fix the code
-continue_run(feedback) ───────────▶ agy --conversation <same id> ──────▶ re-runs, reports passed
+Claude Code                       souschef                                  agy (headless)
+delegate_task(objective) ──────▶  snapshot checkout (incl. uncommitted work)
+◀── taskId                        isolated git worktree ──────────────────▶ writes tests
+wait_for_task ◀── RUNNING         build + test (allow-listed commands)
+                                  failing? resume same conversation ──────▶ repairs test code
+                                  scope check: only test paths changed?
+                                  conflict check, apply tests to checkout
+get_task_result ◀── {"status":"COMPLETED","tests":{"passed":12,"failed":0},...}
 ```
-
-That exact round trip, a planted bug found and then confirmed fixed, is what `npm run smoke`
-runs against the real agent.
 
 ## Install (Claude Code)
 
@@ -40,7 +38,7 @@ claude plugin install souschef@souschef
 ```
 
 The server is one self-contained file (`plugin/dist/server.cjs`), so the plugin needs no
-`npm install`. It needs Node 18+ and git.
+`npm install`. It needs Node 22.13+ (for the built-in SQLite) and git.
 
 ### Other MCP clients
 
@@ -50,25 +48,49 @@ The server is one self-contained file (`plugin/dist/server.cjs`), so the plugin 
 
 ## The tester agent
 
-Install the Antigravity CLI, run `agy` once in a terminal and sign in. souschef finds it on
-PATH, in the installer's default location, or at `SOUSCHEF_AGY`. The `doctor` tool proves it
+Install the Antigravity CLI, run `agy` once in a terminal and sign in. souschef finds it on PATH,
+in the installer's default location, or at `SOUSCHEF_AGY`. `doctor` with `ping: true` proves it
 works by sending it a one-word prompt.
 
 ## Use
 
 Ask Claude to test what it just built, or run `/souschef:taste [scope]`. The bundled
-`delegate-tests` skill does the rest: brief, start, follow, fix, follow up.
+`delegate-tests` skill does the rest.
 
 ### Tools
 
 | Tool | What it does |
 |---|---|
-| `doctor` | Is the agent installed and signed in? What test command and test folders were detected? |
-| `start_run` | Writes the brief and starts the agent in the background. Returns a run id and cursor. |
-| `wait_run` | Blocks until there is news (a file written, the run ending) or a time limit, then returns new events. Ending answers carry the agent's report. |
-| `continue_run` | Follow-up in the same agent conversation, e.g. "I fixed isEven, run again". |
-| `cancel_run` | Stops the agent and everything it started (by PID). |
-| `list_runs` | Recent runs in this project. |
+| `delegate_task` | Starts a task (`taskType: "tests"`) and returns a `taskId` at once. `continueFrom` resumes an earlier task's agent conversation with new feedback. `idempotencyKey` makes retries safe. |
+| `get_task_status` | Status, phase and a one-line progress note. |
+| `wait_for_task` | Blocks until the task finishes or a timeout passes. |
+| `get_task_result` | The compact report. Logs (`testOutput`, `buildOutput`, `agentResponse`) only via `include`. |
+| `get_task_diff` | The patch, size-limited; large ones are listed per file and paged. |
+| `cancel_task` | Stops the task and only the processes souschef started for it. |
+| `doctor` | Agent binary, config validity, git state, detected test command. |
+
+A task moves through `CREATED → QUEUED → RUNNING ⇄ VALIDATING` and ends in `COMPLETED`,
+`NEEDS_REVIEW`, `FAILED`, `CANCELLED` or `TIMED_OUT`. The agent exiting cleanly is never enough
+on its own: build, tests and the scope check decide.
+
+Report example:
+
+```json
+{
+  "taskId": "task_mvj6arlr5377a5",
+  "status": "COMPLETED",
+  "execution": "PASSED",
+  "build": "SKIPPED",
+  "tests": { "command": "npm test --silent", "created": 6, "passed": 6, "failed": 0, "exitCode": 0 },
+  "security": { "status": "PASSED", "outOfScopeChanges": 0 },
+  "apply": { "applied": true },
+  "changedFiles": ["test/math.test.js"],
+  "agent": { "name": "antigravity", "attempts": 1, "usage": { "totalTokens": 48211 } },
+  "summary": "Created 6 tests; tests passed (6 passed, 0 failed). Applied 1 file(s) to the checkout."
+}
+```
+
+Tasks and results live in SQLite (`~/.souschef/souschef.db`), so they survive a server restart.
 
 ### Project config (optional)
 
@@ -76,69 +98,56 @@ Ask Claude to test what it just built, or run `/souschef:taste [scope]`. The bun
 
 ```json
 {
-  "adapter": "agy",
-  "test_command": "dotnet test MySolution.sln --filter \"Category!=Integration\"",
-  "write_globs": ["tests/**"],
+  "test": { "executable": "dotnet", "args": ["test", "MySolution.sln", "--filter", "Category!=Integration"], "cwd": "." },
+  "build": { "executable": "dotnet", "args": ["build", "MySolution.sln"], "cwd": "." },
+  "writeGlobs": ["tests/**"],
   "rules": ["Use xUnit and Moq", "No tests that need a real database"],
-  "timeout_minutes": 60
+  "maxRepairAttempts": 2,
+  "autoApply": true,
+  "agent": { "model": "...", "effort": "high", "permissionMode": "skip-permissions" }
 }
 ```
 
-Without it, souschef detects .NET (`*.sln`, `*.csproj`), Node (`package.json` test script; npm,
-pnpm, yarn, bun), Python (pytest), Go and Rust, and picks the usual test folders.
-
-## What a run leaves behind
-
-`<project>/.souschef/runs/<run-id>/`: `brief.md` (what the agent was told), `task.json`,
-`events.jsonl`, `state.json`, `agent.out.txt`, `agent.log`, and `result.json` (the agent's report):
-
-```json
-{
-  "status": "failed",
-  "tests_added": ["test/math.test.js"],
-  "command": "npm test",
-  "summary": { "total": 6, "passed": 5, "failed": 1, "skipped": 0 },
-  "failures": [{ "test": "isEven returns true for 2", "message": "expected true, got false" }],
-  "suspected_source_bugs": [{ "file": "src/math.js", "requirement": "isEven(2) is true", "detail": "uses n % 2 === 1" }],
-  "uncovered_requirements": [],
-  "notes": ""
-}
-```
-
-`.souschef/` ignores itself, so the project's own `.gitignore` is left alone.
+Without it, souschef looks for the manifest nearest to the target files: .NET (`*.sln`, test
+projects), Node (`package.json` test script; npm, pnpm, yarn, bun from the lockfile), Python
+(pytest; uv, poetry or a local `.venv`), Go and Rust. If that is ambiguous (two solutions, targets
+in two modules, no test script), it says so instead of guessing. In a monorepo, pass `module` or
+list `modules` in the config. v1 keys (`test_command`, `write_globs`, `timeout_minutes`) are still
+read.
 
 ## Safety
 
-The agent runs unattended, so it runs with `--dangerously-skip-permissions`. Three things keep it
-in its lane:
+- **Isolation.** The agent works in a temporary git worktree (or a copy, for non-git projects).
+  Your uncommitted changes are copied in, so the agent tests what you have now. Your checkout is
+  not touched while it runs. `node_modules` / `.venv` are linked in, not copied.
+- **Scope check.** Every changed path is checked against `writeGlobs` and a protected list
+  (manifests, lockfiles, CI, `.env`, keys), plus path traversal and symlinks. Any violation means
+  `NEEDS_REVIEW` and nothing is applied. Deleting tests is not allowed by default; edited existing
+  tests are listed in `modifiedExistingTests`.
+- **Apply.** Only verified, test-only changes are copied back, only if the same files have not
+  changed in your checkout meanwhile, and only once. Nothing of yours is ever rolled back.
+- **Commands.** Test commands run without a shell from an executable allow-list, with timeouts and
+  output limits. Repository git hooks are disabled for souschef's own git calls.
+- **Processes.** Cancel and timeouts kill only process trees souschef started, by PID.
+- **Secrets.** API keys, tokens and secret-looking env values are redacted from stored logs.
 
-1. The brief allows writes only inside `write_globs`, forbids touching production code and git
-   state, and forbids killing processes.
-2. After every run, souschef diffs `git status` against the snapshot taken at start. Anything
-   changed outside `write_globs` comes back as `out_of_scope`, so you see it. Nothing is reverted
-   automatically, since other people or sessions may share the working tree.
-3. Only one run per project at a time. Processes are only ever killed by their own PID.
-
-Use it on projects where an agent writing test files is acceptable, and review what it adds.
+The agent runs with `--dangerously-skip-permissions` by default, because print mode has nobody to
+approve tool calls. A worktree is not an OS sandbox: use `permissionMode:
+"skip-permissions-sandboxed"` for agy's terminal sandbox, and run souschef only on projects where
+an agent executing code is acceptable.
 
 ## Develop
 
 ```
 npm install
 npm run typecheck
+npm test           # unit + integration tests (a fake agent drives real git repos)
 npm run build      # bundles src/ into plugin/dist/server.cjs
-npm run smoke      # real end-to-end run against agy on a throwaway project (takes a few minutes)
+npm run smoke      # real end-to-end run against agy on a throwaway project (a few minutes)
 ```
 
-Adding a backend is one object in `src/adapters.ts`: how to find the binary, the headless
-arguments, and how to read a conversation id for follow-ups.
-
-## Roadmap
-
-- More backends: `gemini -p`, `codex exec`.
-- `isolation: "worktree"`: the agent works in its own git worktree; the result comes back as a patch.
-- Detect the test process ("tests running") for richer progress.
-- A small live view of a run on localhost.
+Adding a backend means implementing `AgentAdapter` (`src/adapters/agent-adapter.ts`): find the
+binary, run one headless turn, return status, structured output, usage and a conversation id.
 
 ## License
 

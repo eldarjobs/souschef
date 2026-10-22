@@ -1,58 +1,64 @@
 ---
 name: delegate-tests
-description: Hand test writing to a second coding agent (Antigravity CLI, agy) through the souschef MCP tools, follow the run live, and act on its findings. Use when you have finished implementing or changing code and it needs tests, when the project's instructions say tests are written by another agent, or when the user asks to delegate tests to Antigravity, agy or a tester agent.
+description: Hand test writing to a second coding agent (Antigravity CLI, agy) through the souschef MCP tools. SousChef runs it in an isolated workspace, builds and runs the tests, rejects changes outside test files, applies verified tests to the checkout and returns a compact report. Use when you have finished implementing or changing code and it needs tests, when the project's instructions say tests are written by another agent, or when the user asks to delegate tests to Antigravity, agy or a tester agent.
 ---
 
 # Delegate tests to the tester agent
 
-You implement; the tester agent writes and runs the tests. Do not write the test files yourself
-while this workflow is in use.
+You implement; the tester agent writes the tests. Do not write test files yourself while this
+workflow is in use. The point is to keep test code and test logs out of your context: read the
+compact report, and ask for diffs or logs only when something specific needs them.
 
-## 1. Check the agent (once per session)
+## 1. Check the setup (once per session)
 
-Call `doctor` with `cwd` set to the absolute project root. If `signed_in` is false or `binary` is
-null, tell the user what the `hints` say and stop: nothing below works until that is fixed.
-Check `project.test_command` and `project.write_globs`. If they are wrong for this project, either
-pass `test_command` / `write_globs` to `start_run`, or suggest adding `.souschef.json` to the
-project root:
+Call `doctor` with `projectRoot` set to the absolute project root. If `agent.ok` is false, tell
+the user what `agent.detail` says and stop. If `tests.problem` is set, SousChef could not pick a
+test command safely: show the problem and suggest a `.souschef.json` in the project root, e.g.
 
 ```json
-{ "test_command": "...", "write_globs": ["tests/**"], "rules": ["..."], "timeout_minutes": 60 }
+{ "test": { "executable": "dotnet", "args": ["test", "App.sln"], "cwd": "." }, "writeGlobs": ["tests/**"], "rules": ["..."] }
 ```
 
-## 2. Brief the agent
+## 2. Delegate
 
-Call `start_run` with:
+Call `delegate_task` with:
 
-- `feature`: one line on what changed.
-- `changed_files`: the production files you touched.
-- `requirements`: one concrete, checkable behaviour per item, as you would brief a colleague who
-  has not seen the code. Name the input, the expected outcome and the edge cases, e.g.
-  "OperatesOn('135', a Wednesday) returns true: the digits are a set, not positions". Cover the
-  failure paths (which exception, which message) as well as the happy path. Put placement and run
-  instructions first, as `SETUP: ...` and `RUN: ...` items, when the project needs them.
-- `cwd`: the absolute project root.
+- `taskType`: `"tests"`.
+- `projectRoot`: the absolute project root.
+- `targetPaths`: the production files you changed (relative paths).
+- `objective`: concrete, checkable behaviour, as you would brief a colleague who has not seen the
+  code: inputs, expected outcomes, edge cases and failure paths (which exception, which message).
+  Put placement instructions first ("Put the tests in tests/Orders/...").
+- `module`: only in a monorepo whose targets live in one module.
 
-Tell the user in one line that the run started, with its run_id.
+Uncommitted changes are included automatically; you do not need to commit first. Tell the user in
+one line that the task started, with its taskId.
 
-## 3. Follow it live
+## 3. Wait
 
-Call `wait_run` with the run_id and the `cursor` from the previous answer, again and again, while
-`state` is `running`. After each answer, give the user one short line on what moved (files
-written, elapsed time). Do not edit the files under test meanwhile: the agent is reading them.
+Call `wait_for_task` with the taskId until `finished` is true. After each call, give the user one
+short line with `phase` and `progress`. Do not edit files under test meanwhile.
 
 ## 4. Act on the result
 
-- `passed`: report the summary and the test files added.
-- `failed`: read `result.suspected_source_bugs` and `result.failures`.
-  - For each suspected source bug, read the production code and decide who is right. If the code
-    is wrong, fix it. If the requirement was wrong, say so in the feedback.
-  - Then call `continue_run` with feedback that names what you fixed and which tests to re-run, or
-    which tests are wrong and why. Follow the new run_id as in step 3.
-  - Stop after three follow-ups and hand the rest to the user.
-- `error` / `timeout`: show `reason`. If the agent printed nothing, run `doctor`.
-- `out_of_scope` is not empty: the agent changed files outside the test folders. Show the user
-  the list. Do not revert them without asking.
+Call `get_task_result` (no `include`). Then:
 
-Always finish with what was tested, what passed, what you changed in production code, and what
-is still open.
+- `COMPLETED`: report `summary` and `changedFiles`. If `apply.applied` is false, say why
+  (`apply.reason`).
+- `NEEDS_REVIEW` with `agent.suspectedProductBug`: the tests point to a bug in your code. Read
+  `reason`, then the production code, and decide who is right. If the code is wrong, fix it and call
+  `delegate_task` again with `continueFrom: <taskId>` and an `objective` that says what you fixed.
+  If the expectation was wrong, say so in the follow-up objective instead.
+- `NEEDS_REVIEW` with `security.outOfScopeChanges` > 0: the agent touched files outside the test
+  paths; nothing was applied. Show `security.violations` to the user.
+- `NEEDS_REVIEW` with `apply.conflicts`: the checkout changed while the task ran. Ask the user
+  whether to re-run.
+- `FAILED`: read `reason`. Only if it is unclear, call `get_task_result` with
+  `include: ["testOutput"]` (or `buildOutput`) for the tail of the log.
+- `TIMED_OUT` / `CANCELLED`: report it; re-run only if the user wants to.
+
+Use `get_task_diff` only when you need to see what the agent wrote (one `path` at a time for big
+diffs). Stop after three follow-ups and hand the rest to the user.
+
+Always finish with what was tested, what passed, what you changed in production code, and what is
+still open.
