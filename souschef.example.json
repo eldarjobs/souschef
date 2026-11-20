@@ -1,0 +1,9 @@
+{
+  "test": { "executable": "npm", "args": ["test"], "cwd": "." },
+  "writeGlobs": ["test/**", "**/*.test.ts"],
+  "rules": ["Use the existing test helpers in test/helpers"],
+  "maxRepairAttempts": 2,
+  "autoApply": true,
+  "taskTimeoutMinutes": 45,
+  "agent": { "adapter": "agy", "permissionMode": "skip-permissions", "timeoutMinutes": 20 }
+}
