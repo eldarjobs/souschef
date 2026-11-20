@@ -50,6 +50,10 @@ export class TaskStore {
     this.db.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA busy_timeout = 5000;
+      PRAGMA synchronous = NORMAL;
+      PRAGMA temp_store = MEMORY;
+      PRAGMA cache_size = -64000;
+      PRAGMA mmap_size = 268435456;
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
         status TEXT NOT NULL,

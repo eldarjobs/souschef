@@ -60,12 +60,13 @@ const RULES = `Hard rules:
 - Never delete existing tests and never weaken assertions to make tests pass.
 - Do not install packages or change dependencies.
 - Follow the conventions of the existing tests (framework, naming, folder layout).
+- FAST EXECUTION: Do NOT run git commands (git status, git diff, git log). The uncommitted
+  changes listed above are already in your working copy: read those files directly.
+- Focus directly on the code under test; do NOT explore or search unrelated workspace directories.
 - SousChef runs the full test command itself after you finish. Builds and test runs are slow:
   when you run tests yourself, build and run only the test project you changed, filtered to the
   tests you wrote (e.g. dotnet test <project> --filter FullyQualifiedName~<YourTestClass>),
-  never the whole solution, and do not re-run them without a change in between.
-- The uncommitted changes listed above are already in your working copy: read those files
-  directly. git status/diff here is slow and shows nothing more.`;
+  never the whole solution, and do not re-run them without a change in between.`;
 
 /** Builds a minimal, self-contained prompt: paths and rules, no pasted source. */
 export function buildInitialPrompt(ctx: PromptContext): string {

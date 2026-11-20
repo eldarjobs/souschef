@@ -36468,7 +36468,20 @@ function emptyHooksDir() {
 }
 async function git(args, opts) {
   const cfg = Object.entries(opts.config ?? {}).flatMap(([k, v]) => ["-c", `${k}=${v}`]);
-  const base = ["-c", `core.hooksPath=${emptyHooksDir()}`, "-c", "core.fsmonitor=false"];
+  const base = [
+    "-c",
+    `core.hooksPath=${emptyHooksDir()}`,
+    "-c",
+    "core.fsmonitor=false",
+    "-c",
+    "core.fscache=true",
+    "-c",
+    "core.preloadindex=true",
+    "-c",
+    "core.untrackedCache=true",
+    "-c",
+    "gc.auto=0"
+  ];
   if (opts.input !== void 0) {
     return new Promise((resolve, reject) => {
       const child = (0, import_node_child_process2.execFile)("git", [...base, ...cfg, ...args], { cwd: opts.cwd, maxBuffer: 512 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
@@ -37265,12 +37278,13 @@ var RULES = `Hard rules:
 - Never delete existing tests and never weaken assertions to make tests pass.
 - Do not install packages or change dependencies.
 - Follow the conventions of the existing tests (framework, naming, folder layout).
+- FAST EXECUTION: Do NOT run git commands (git status, git diff, git log). The uncommitted
+  changes listed above are already in your working copy: read those files directly.
+- Focus directly on the code under test; do NOT explore or search unrelated workspace directories.
 - SousChef runs the full test command itself after you finish. Builds and test runs are slow:
   when you run tests yourself, build and run only the test project you changed, filtered to the
   tests you wrote (e.g. dotnet test <project> --filter FullyQualifiedName~<YourTestClass>),
-  never the whole solution, and do not re-run them without a change in between.
-- The uncommitted changes listed above are already in your working copy: read those files
-  directly. git status/diff here is slow and shows nothing more.`;
+  never the whole solution, and do not re-run them without a change in between.`;
 function buildInitialPrompt(ctx) {
   const where = (p) => ctx.projectSubdir ? `${ctx.projectSubdir}/${p}` : p;
   const lines = [
@@ -37910,6 +37924,10 @@ var TaskStore = class {
     this.db.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA busy_timeout = 5000;
+      PRAGMA synchronous = NORMAL;
+      PRAGMA temp_store = MEMORY;
+      PRAGMA cache_size = -64000;
+      PRAGMA mmap_size = 268435456;
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
         status TEXT NOT NULL,
@@ -38066,7 +38084,10 @@ var DEFAULT_EXCLUDES = [
   ".pytest_cache/",
   "TestResults/",
   "coverage/",
-  ".nyc_output/"
+  ".nyc_output/",
+  ".tsbuildinfo",
+  ".turbo/",
+  ".cache/"
 ];
 var WorkspaceManager = class {
   async prepare(opts) {
@@ -38076,7 +38097,14 @@ var WorkspaceManager = class {
     if ((0, import_node_fs13.existsSync)(dir)) throw new Error(`Workspace ${dir} already exists`);
     const excludesFile = import_node_path15.default.join(opts.workspaceRoot, `${opts.taskId}.exclude`);
     (0, import_node_fs13.writeFileSync)(excludesFile, [...DEFAULT_EXCLUDES, ...opts.linkDirs.map((d) => `${d}/`)].join("\n") + "\n");
-    const gitConfig = { "core.excludesFile": excludesFile.replace(/\\/g, "/"), "core.autocrlf": "false" };
+    const gitConfig = {
+      "core.excludesFile": excludesFile.replace(/\\/g, "/"),
+      "core.autocrlf": "false",
+      "core.fscache": "true",
+      "core.preloadindex": "true",
+      "core.untrackedCache": "true",
+      "gc.auto": "0"
+    };
     let ws;
     if (baseline.isRepo && baseline.head && baseline.topLevel) {
       const mainRoot = import_node_fs13.realpathSync.native(baseline.topLevel);
@@ -38213,7 +38241,13 @@ async function resetPool(dir, mainRoot, head, excludesFile) {
   try {
     const commonDir = async (cwd) => import_node_path15.default.resolve((await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd })).trim()).toLowerCase();
     if (await commonDir(dir) !== await commonDir(mainRoot)) return false;
-    const config2 = { "core.excludesFile": excludesFile.split(import_node_path15.default.sep).join("/") };
+    const config2 = {
+      "core.excludesFile": excludesFile.split(import_node_path15.default.sep).join("/"),
+      "core.fscache": "true",
+      "core.preloadindex": "true",
+      "core.untrackedCache": "true",
+      "gc.auto": "0"
+    };
     await git(["reset", "--hard", "--quiet"], { cwd: dir, config: config2 });
     await git(["checkout", "--detach", "--force", "--quiet", head], { cwd: dir, config: config2 });
     await git(["clean", "-fdq"], { cwd: dir, config: config2 });
@@ -38305,7 +38339,7 @@ function toPosix(p) {
 }
 
 // src/mcp/server.ts
-var VERSION = "0.3.1";
+var VERSION = "0.3.2";
 function eventsDir(dataDir) {
   return import_node_path16.default.join(dataDir, "events");
 }

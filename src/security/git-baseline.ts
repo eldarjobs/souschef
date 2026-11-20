@@ -27,7 +27,14 @@ export async function git(args: string[], opts: GitOptions): Promise<string> {
   const cfg = Object.entries(opts.config ?? {}).flatMap(([k, v]) => ['-c', `${k}=${v}`]);
   // Repository hooks (e.g. post-checkout on `worktree add`) and fsmonitor never run
   // inside souschef-driven git commands: hooksPath points at an empty directory.
-  const base = ['-c', `core.hooksPath=${emptyHooksDir()}`, '-c', 'core.fsmonitor=false'];
+  const base = [
+    '-c', `core.hooksPath=${emptyHooksDir()}`,
+    '-c', 'core.fsmonitor=false',
+    '-c', 'core.fscache=true',
+    '-c', 'core.preloadindex=true',
+    '-c', 'core.untrackedCache=true',
+    '-c', 'gc.auto=0'
+  ];
   if (opts.input !== undefined) {
     return new Promise((resolve, reject) => {
       const child = execFile('git', [...base, ...cfg, ...args], { cwd: opts.cwd, maxBuffer: 512 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {

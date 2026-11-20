@@ -28,7 +28,10 @@ const DEFAULT_EXCLUDES = [
   '.pytest_cache/',
   'TestResults/',
   'coverage/',
-  '.nyc_output/'
+  '.nyc_output/',
+  '.tsbuildinfo',
+  '.turbo/',
+  '.cache/'
 ];
 
 export interface Workspace {
@@ -67,7 +70,14 @@ export class WorkspaceManager {
 
     const excludesFile = path.join(opts.workspaceRoot, `${opts.taskId}.exclude`);
     writeFileSync(excludesFile, [...DEFAULT_EXCLUDES, ...opts.linkDirs.map((d) => `${d}/`)].join('\n') + '\n');
-    const gitConfig = { 'core.excludesFile': excludesFile.replace(/\\/g, '/'), 'core.autocrlf': 'false' };
+    const gitConfig = {
+      'core.excludesFile': excludesFile.replace(/\\/g, '/'),
+      'core.autocrlf': 'false',
+      'core.fscache': 'true',
+      'core.preloadindex': 'true',
+      'core.untrackedCache': 'true',
+      'gc.auto': '0'
+    };
 
     let ws: Workspace;
     if (baseline.isRepo && baseline.head && baseline.topLevel) {
@@ -231,7 +241,13 @@ async function resetPool(dir: string, mainRoot: string, head: string, excludesFi
     const commonDir = async (cwd: string) =>
       path.resolve((await git(['rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd })).trim()).toLowerCase();
     if ((await commonDir(dir)) !== (await commonDir(mainRoot))) return false;
-    const config = { 'core.excludesFile': excludesFile.split(path.sep).join('/') };
+    const config = {
+      'core.excludesFile': excludesFile.split(path.sep).join('/'),
+      'core.fscache': 'true',
+      'core.preloadindex': 'true',
+      'core.untrackedCache': 'true',
+      'gc.auto': '0'
+    };
     await git(['reset', '--hard', '--quiet'], { cwd: dir, config });
     await git(['checkout', '--detach', '--force', '--quiet', head], { cwd: dir, config });
     await git(['clean', '-fdq'], { cwd: dir, config });
