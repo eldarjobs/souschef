@@ -2,3 +2,10 @@ node_modules/
 .souschef/
 *.log
 build-tests/
+.serena/
+.env
+.env.*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
